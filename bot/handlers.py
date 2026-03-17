@@ -25,6 +25,10 @@ from models import (
 )
 from translation import build_multilingual, detect_language, format_multilingual_for_user, translate_text
 
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+
+
+
 TYPE, CATEGORY, DESCRIPTION, CONTACT, PHOTO = range(5)
 AUTH_EMAIL, AUTH_CODE = range(10, 12)
 LF_TYPE, LF_TITLE, LF_DESCRIPTION, LF_CONTACT, LF_PHOTO = range(20, 25)
@@ -105,7 +109,7 @@ MESSAGES: dict[str, dict[str, str]] = {
     # generic
     "NEED_VERIFY_FIRST": {
         "ru": "Сначала пройдите авторизацию.",
-        "en": "Please verify first.",
+        "en": "Please verify with HSE email first.",
         "zh": "请先完成验证。",
     },
     "ACTION_CANCELLED": {"ru": "Действие отменено.", "en": "Cancelled.", "zh": "已取消。"},
@@ -148,10 +152,14 @@ MESSAGES: dict[str, dict[str, str]] = {
     # verification
     "VERIFY_REQUIRED": {
         "ru": "Для доступа к DormLink нужна верификация через корпоративную почту ВШЭ.\nНажмите кнопку ниже или используйте /verify.",
-        "en": "DormLink requires verification via HSE corporate email.\nTap the button below or use /verify.",
+        "en": "DormLink requires verification via HSE email.\nTap the button below or use /verify.",
         "zh": "使用 DormLink 需要通过 HSE 企业邮箱验证。\n点击下方按钮或使用 /verify。",
     },
-    "VERIFY_START_BTN": {"ru": "Начать верификацию", "en": "Start verification", "zh": "开始验证"},
+    "VERIFY_START_BTN": {
+        "ru": "Начать верификацию",
+        "en": "Start verification",
+        "zh": "开始验证",
+    },
     "ALREADY_VERIFIED": {
         "ru": "Вы уже авторизованы: {email}",
         "en": "You are already verified: {email}",
@@ -159,17 +167,17 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "ENTER_HSE_EMAIL": {
         "ru": "Введите вашу корпоративную почту ВШЭ (должна заканчиваться на @edu.hse.ru):",
-        "en": "Enter your HSE corporate email (must end with @edu.hse.ru):",
+        "en": "Enter your HSE email (must end with @edu.hse.ru):",
         "zh": "请输入你的 HSE 企业邮箱（必须以 @edu.hse.ru 结尾）：",
     },
     "EMAIL_INVALID": {
         "ru": "Неверный формат. Нужен адрес вида name@edu.hse.ru. Попробуйте еще раз:",
-        "en": "Invalid format. Use name@edu.hse.ru. Try again:",
+        "en": "Invalid email. Use name@edu.hse.ru and try again:",
         "zh": "邮箱格式不正确，需要 name@edu.hse.ru。请重试：",
     },
     "CODE_SENT": {
         "ru": "Окей, отправили код. Введи его как придет. (Не забудьте заглянуть в спам.)",
-        "en": "OK, we sent a code. Enter it when it arrives (check spam too).",
+        "en": "Code sent. Enter it when it arrives (check spam).",
         "zh": "好的，验证码已发送。收到后请输入（也请检查垃圾邮件）。",
     },
     "ALREADY_CONFIRMED": {
@@ -189,12 +197,12 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "CODE_WRONG": {
         "ru": "Неверный код. Проверьте письмо и попробуйте еще раз:",
-        "en": "Wrong code. Check your email and try again:",
+        "en": "Wrong code. Check the email and try again:",
         "zh": "验证码错误。请检查邮件并重试：",
     },
     "CODE_OK": {
         "ru": "Код верный, ура! Начинаем!",
-        "en": "Correct code — welcome!",
+        "en": "Code correct. Welcome!",
         "zh": "验证码正确！开始吧！",
     },
     "CURRENT_DORM": {"ru": "Текущее общежитие: {dorm}", "en": "Current dorm: {dorm}", "zh": "当前宿舍：{dorm}"},
@@ -212,8 +220,19 @@ MESSAGES: dict[str, dict[str, str]] = {
     "DORM_CHOSEN": {"ru": "Вы выбрали: {dorm}", "en": "Selected: {dorm}", "zh": "已选择：{dorm}"},
     "READY_TO_START": {
         "ru": "Можно начинать работу 👇",
-        "en": "You can start using the bot 👇",
+        "en": "Ready. You can use the bot 👇",
         "zh": "现在可以开始使用 👇",
+    },
+    # language flow
+    "LANG_SAVED": {
+        "ru": "Язык сохранён.",
+        "en": "Language saved.",
+        "zh": "语言已保存。",
+    },
+    "NOW_VERIFY": {
+        "ru": "Теперь пройдите верификацию через почту ВШЭ.",
+        "en": "Now verify with your HSE email.",
+        "zh": "现在请通过 HSE 邮箱完成验证。",
     },
     # listings
     "LISTING_TYPE_PROMPT": {"ru": "Тип объявления:", "en": "Listing type:", "zh": "信息类型："},
@@ -419,11 +438,19 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh": "信息 #{id} 已标记为 {status}。",
     },
     # language
-    "LANG_CHOOSE": {"ru": "Выберите язык / Choose language / 选择语言:", "en": "Choose language / Выберите язык / 选择语言:", "zh": "选择语言 / Choose language / Выберите язык:"},
-    "LANG_UNKNOWN": {"ru": "Неизвестный язык.", "en": "Unknown language.", "zh": "未知语言。"},
+    "LANG_CHOOSE": {
+        "ru": "Выберите язык / Choose language / 选择语言:",
+        "en": "Choose language / Выберите язык / 选择语言:",
+        "zh": "选择语言 / Choose language / Выберите язык:",
+    },
+    "LANG_UNKNOWN": {
+        "ru": "Неизвестный язык.",
+        "en": "Unknown language.",
+        "zh": "未知语言。",
+    },
     "LANG_UPDATED": {
         "ru": "Готово ✅ Язык обновлён.",
-        "en": "Done ✅ Language updated.",
+        "en": "Language updated.",
         "zh": "完成 ✅ 语言已更新。",
     },
     "MY_ACTIVE_LISTINGS": {
@@ -559,6 +586,33 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh": "未选择",
     },
 
+    "NEED_CHOOSE_DORM": {
+        "ru": "Сначала выберите номер общежития, чтобы продолжить работу.",
+        "en": "Please choose your dorm first before proceeding.",
+        "zh": "请先选择您的宿舍，然后继续操作。",
+    },
+
+    "EMAIL_SUBJECT": {
+        "ru": "DormLink: код подтверждения",
+        "en": "DormLink: verification code",
+        "zh": "DormLink：验证码",
+    },
+    "EMAIL_BODY": {
+        "ru": "Ваш код подтверждения для DormLink: {code}\nКод действует 10 минут.",
+        "en": "Your verification code for DormLink is: {code}\nThe code is valid for 10 minutes.",
+        "zh": "您的 DormLink 验证码是: {code}\n该验证码有效期为10分钟。",
+    },
+    "SENDGRID_NOT_CONFIGURED": {
+        "ru": "SendGrid не настроен. Укажите SENDGRID_API_KEY и SENDGRID_FROM в .env.",
+        "en": "SendGrid is not configured. Set SENDGRID_API_KEY and SENDGRID_FROM in .env.",
+        "zh": "SendGrid 未配置，请在 .env 中设置 SENDGRID_API_KEY 和 SENDGRID_FROM。",
+    },
+    "EMAIL_SENT_SUCCESS": {
+        "ru": "Код отправлен через SendGrid.",
+        "en": "Code sent via SendGrid.",
+        "zh": "验证码已通过 SendGrid 发送。",
+    },
+
     "INFO_TEXT": {
         "ru":
             "Текущее общежитие: {dorm}\n\n"
@@ -690,20 +744,50 @@ ZONE_MAP = {
 
 HSE_EMAIL_PATTERN = re.compile(r"^[A-Za-z0-9._%+-]+@edu\.hse\.ru$", re.IGNORECASE)
 
-DORMS = [
-    "Общежитие №1",
-    "Общежитие №2",
-    "Общежитие №3",
-    "Общежитие №4",
-    "Общежитие №5",
-    "Общежитие №6",
-    "Общежитие №7",
-    "Общежитие №8 «Трилистник»",
-    "Общежитие №9",
-    "Общежитие №10",
-    "Дом аспиранта",
-    "Студенческий городок Дубки",
-]
+DORMS = {
+    "ru": [
+        "Общежитие №1",
+        "Общежитие №2",
+        "Общежитие №3",
+        "Общежитие №4",
+        "Общежитие №5",
+        "Общежитие №6",
+        "Общежитие №7",
+        "Общежитие №8 «Трилистник»",
+        "Общежитие №9",
+        "Общежитие №10",
+        "Дом аспиранта",
+        "Студенческий городок Дубки",
+    ],
+    "en": [
+        "Dorm №1",
+        "Dorm №2",
+        "Dorm №3",
+        "Dorm №4",
+        "Dorm №5",
+        "Dorm №6",
+        "Dorm №7",
+        "Dorm №8 “Trilistnik”",
+        "Dorm №9",
+        "Dorm №10",
+        "Graduate House",
+        "Dubki Student Campus",
+    ],
+    "zh": [
+        "宿舍1号",
+        "宿舍2号",
+        "宿舍3号",
+        "宿舍4号",
+        "宿舍5号",
+        "宿舍6号",
+        "宿舍7号",
+        "宿舍8号 “三叶草”",
+        "宿舍9号",
+        "宿舍10号",
+        "研究生宿舍",
+        "杜布基学生园区",
+    ],
+}
 
 ALLOWED_CATEGORIES = [
     "Книги",
@@ -801,9 +885,10 @@ def _menu_keyboard(is_verified: bool, lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
 
-def _dorm_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[InlineKeyboardButton(d, callback_data=f"dorm_{d}")] for d in DORMS])
-
+def _dorm_keyboard(lang: str = "ru") -> InlineKeyboardMarkup:
+    dorm_list = DORMS.get(lang, DORMS["ru"])
+    buttons = [[InlineKeyboardButton(d, callback_data=f"dorm_{i}")] for i, d in enumerate(dorm_list, start=1)]
+    return InlineKeyboardMarkup(buttons)
 
 def _marketplace_keyboard(lang: str) -> ReplyKeyboardMarkup:
     rows = [
@@ -873,15 +958,24 @@ def _is_verified(profile: UserProfile) -> bool:
 
 async def _ensure_verified(update: Update) -> UserProfile | None:
     profile = _profile_for_update(update)
+
+    # язык берём либо из профиля, либо "ru"
+    lang = getattr(profile, "preferred_language", None) or "ru"
+
     if _is_verified(profile):
         return profile
 
+    # Если язык ещё не выбран, не показываем verify (пока)
+    if not getattr(profile, "preferred_language", None):
+        return None  # просто возвращаем None
+
+    # иначе показываем кнопку и текст на нужном языке
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton(t(profile, "VERIFY_START_BTN"), callback_data="verify_start")]]
     )
     await _reply(
         update,
-        t(profile, "VERIFY_REQUIRED"),
+        t(profile, "VERIFY_REQUIRED"),  # текст будет через t() с выбранным языком
         reply_markup=keyboard,
     )
     return None
@@ -895,15 +989,20 @@ def _user_lang(profile: UserProfile | None) -> str:
 async def _ensure_dorm_selected(update: Update, profile: UserProfile) -> bool:
     if profile.selected_dorm:
         return True
+
+    # Определяем язык пользователя
+    lang = profile.preferred_language or "ru"
+
+    # Отправляем сообщение с текстом через t() и клавиатуру на нужном языке
     await _reply(
         update,
-        "Сначала выберите номер общежития, чтобы продолжить работу.",
-        reply_markup=_dorm_keyboard(),
+        t(profile, "NEED_CHOOSE_DORM"),  # добавь в MESSAGES ключ "NEED_CHOOSE_DORM"
+        reply_markup=_dorm_keyboard(lang),
     )
     return False
 
 
-def _smtp_send_verification(email: str, code: str) -> tuple[bool, str]:
+def _smtp_send_verification(email: str, code: str, profile: UserProfile) -> tuple[bool, str]:
     sendgrid_key = os.getenv("SENDGRID_API_KEY")
     sendgrid_user = os.getenv("SENDGRID_SMTP_USER", "apikey")
     sendgrid_from = os.getenv("SENDGRID_FROM")
@@ -912,21 +1011,25 @@ def _smtp_send_verification(email: str, code: str) -> tuple[bool, str]:
     sendgrid_tls = os.getenv("SENDGRID_SMTP_USE_TLS", "true").lower() != "false"
     sendgrid_ssl = os.getenv("SENDGRID_SMTP_USE_SSL", "false").lower() == "true"
 
+    lang = _user_lang(profile)
+
     if not all([sendgrid_key, sendgrid_from]):
         return (
             False,
-            "SendGrid не настроен. Укажите SENDGRID_API_KEY и SENDGRID_FROM в .env.",
+            t(profile, "SENDGRID_NOT_CONFIGURED")  # новый ключ в MESSAGES
         )
 
+    # Тема письма
+    subject = t(profile, "EMAIL_SUBJECT")  # новый ключ, например "DormLink: код подтверждения"
+
+    # Текст письма с кодом
+    body = t(profile, "EMAIL_BODY", code=code)  # пример: "Ваш код подтверждения для DormLink: {code}"
+
     msg = EmailMessage()
-    msg["Subject"] = "DormLink: код подтверждения"
+    msg["Subject"] = subject
     msg["From"] = sendgrid_from
     msg["To"] = email
-    msg.set_content(
-        "Ваш код подтверждения для DormLink:\n\n"
-        f"{code}\n\n"
-        "Код действует 10 минут."
-    )
+    msg.set_content(body)
 
     try:
         ssl_context = ssl.create_default_context()
@@ -953,7 +1056,7 @@ def _smtp_send_verification(email: str, code: str) -> tuple[bool, str]:
     except Exception as exc:
         return (False, f"SendGrid error: {exc}")
 
-    return (True, "Код отправлен через SendGrid.")
+    return (True, t(profile, "EMAIL_SENT_SUCCESS"))  # "Код отправлен через SendGrid."
 
 
 
@@ -1055,25 +1158,53 @@ async def _send_listing(update: Update, listing: Listing, with_actions: bool = F
         )
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    profile = _profile_for_update(update)
-    lang = _user_lang(profile)
-    if not _is_verified(profile):
-        return await verify_start(update, context)
-
-    if not profile.selected_dorm:
-        await update.message.reply_text(
-            t(profile, "WELCOME_NEED_DORM"),
-            reply_markup=_menu_keyboard(True, lang),
-        )
-        await update.message.reply_text(t(profile, "DORM_CHOOSE_PROMPT"), reply_markup=_dorm_keyboard())
-        return ConversationHandler.END
-
-    await update.message.reply_text(
-        t(profile, "HELLO_WITH_DORM", dorm=profile.selected_dorm),
-        reply_markup=_menu_keyboard(True, lang),
+# клавиатура выбора языка
+def language_keyboard():
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru"),
+                InlineKeyboardButton("🇬🇧 English", callback_data="lang_en"),
+                InlineKeyboardButton("🇨🇳 中文", callback_data="lang_zh"),
+            ]
+        ]
     )
-    return ConversationHandler.END
+
+# /start — только выбор языка
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # показываем выбор языка сразу
+    await update.message.reply_text(
+        "Choose language / Выберите язык / 选择语言",
+        reply_markup=language_keyboard(),
+    )
+
+# Callback после выбора языка
+async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    lang = query.data.replace("lang_", "").strip().lower()
+    if lang not in {"ru", "en", "zh"}:
+        await query.message.reply_text("Unknown language")
+        return
+
+    # сохраняем язык в профиле
+    profile, _ = UserProfile.get_or_create(telegram_id=update.effective_user.id)
+    profile.preferred_language = lang
+    profile.save()
+    context.user_data["lang"] = lang
+
+    # показываем подтверждение выбора языка
+    await query.message.reply_text(t(profile, "LANG_SAVED"))
+
+    # сразу предлагаем пройти verify
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(t(profile, "VERIFY_START_BTN"), callback_data="verify_start")]]
+    )
+    await query.message.reply_text(
+        t(profile, "NOW_VERIFY"),  # текст через t() на выбранном языке
+        reply_markup=keyboard
+    )
 
 
 async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1146,7 +1277,16 @@ async def verify_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def verify_start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    return await verify_start(update, context)
+
+    profile = _profile_for_update(update)
+    lang = _user_lang(profile)
+
+    # отправляем код на email
+    success, msg = _smtp_send_verification(profile.email, profile.verification_code, profile)
+    await query.message.reply_text(msg)
+
+    # ждём ввод кода (ConversationHandler)
+    await query.message.reply_text(t(profile, "SEND_CODE_FIRST"))
 
 
 async def verify_email_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1162,7 +1302,7 @@ async def verify_email_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     profile.save()
 
     code = f"{random.randint(100000, 999999)}"
-    ok, message = _smtp_send_verification(email, code)
+    ok, message = _smtp_send_verification(email, code, profile)
     if not ok:
         await update.message.reply_text(message)
         return AUTH_EMAIL
@@ -1181,9 +1321,13 @@ async def verify_email_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def verify_code_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     code = update.message.text.strip()
     profile = _profile_for_update(update)
-    lang = _user_lang(profile)
+    lang = _user_lang(profile)  # язык пользователя
+
     if _is_verified(profile):
-        await update.message.reply_text(t(profile, "ALREADY_CONFIRMED"), reply_markup=_menu_keyboard(True, lang))
+        await update.message.reply_text(
+            t(profile, "ALREADY_CONFIRMED"),
+            reply_markup=_menu_keyboard(True, lang)
+        )
         return ConversationHandler.END
 
     if not profile.verification_code or not profile.code_expires_at:
@@ -1201,28 +1345,29 @@ async def verify_code_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(t(profile, "CODE_WRONG"))
         return AUTH_CODE
 
+    # Подтверждаем профиль
+    # после успешной верификации
     profile.is_verified = True
     profile.verification_code = "CONFIRMED"
-    profile.code_expires_at = None
     profile.save()
 
-    await update.message.reply_text(
-        t(profile, "CODE_OK"),
-        reply_markup=_menu_keyboard(True, lang),
-    )
-    if profile.selected_dorm:
-        await update.message.reply_text(t(profile, "CURRENT_DORM", dorm=profile.selected_dorm))
-    else:
-        await update.message.reply_text(t(profile, "NOW_CHOOSE_DORM"), reply_markup=_dorm_keyboard())
-    return ConversationHandler.END
+    # меню
+    await update.message.reply_text(t(profile, "CODE_OK"), reply_markup=_menu_keyboard(True, lang))
 
+    # выбор общежития
+    await update.message.reply_text(
+        t(profile, "NOW_CHOOSE_DORM"),
+        reply_markup=_dorm_keyboard(lang)
+    )
 
 async def change_dorm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    profile = await _ensure_verified(update)
-    if not profile:
-        return
-    await update.message.reply_text(t(profile, "CHOOSE_NEW_DORM"), reply_markup=_dorm_keyboard())
-
+    profile = _profile_for_update(update)  # берём профиль пользователя
+    user_language = profile.preferred_language or "ru"  # язык из профиля
+    keyboard = _dorm_keyboard(user_language)  # кнопки на нужном языке
+    await update.message.reply_text(
+        t(profile, "CHOOSE_DORM"),  # текст тоже через t() с профилем
+        reply_markup=keyboard
+    )
 
 async def dorm_chosen(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1390,14 +1535,16 @@ async def lostfound_add_start(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton(
-                t(profile,"LF_LOST"),
-                callback_data="lf_type_Потеряно"
-            ),
-            InlineKeyboardButton(
-                t(profile,"LF_FOUND"),
-                callback_data="lf_type_Найдено"
-            ),
+            [
+                InlineKeyboardButton(
+                    t(profile, "LF_LOST"),
+                    callback_data="lf_type_Потеряно",
+                ),
+                InlineKeyboardButton(
+                    t(profile, "LF_FOUND"),
+                    callback_data="lf_type_Найдено",
+                ),
+            ]
         ]
     )
     await update.message.reply_text(t(profile, "LF_PUBLISH_PROMPT"), reply_markup=keyboard)
@@ -1906,6 +2053,18 @@ async def _show_zone_slots(query_message, profile: UserProfile, zone_key: str, d
     text = t(profile, "ZONE_PICK_SLOT", zone=zone_name, date=day.strftime("%d.%m.%Y"))
     await query_message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard_rows))
 
+
+
+def language_keyboard():
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru"),
+                InlineKeyboardButton("🇬🇧 English", callback_data="lang_en"),
+                InlineKeyboardButton("🇨🇳 中文", callback_data="lang_zh"),
+            ]
+        ]
+    )
 
 async def zone_booking_zone_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

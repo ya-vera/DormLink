@@ -74,6 +74,7 @@ from handlers import (
     ticket_status_update,
     ticket_theme_input,
     type_selected,
+    language_callback,
     verify_code_input,
     verify_email_input,
     verify_start,
@@ -229,7 +230,8 @@ def main():
         entry_points=[
             CommandHandler("verify", verify_start),
             MessageHandler(filters.Regex(f"^{BUTTON_REGEX['VERIFY']}$"), verify_start),
-            CallbackQueryHandler(verify_start_callback, pattern="^verify_start$"),
+            # Нажатие на inline‑кнопку "Start verification"
+            CallbackQueryHandler(verify_start, pattern="^verify_start$"),
         ],
         states={
             AUTH_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, verify_email_input)],
@@ -314,9 +316,22 @@ def main():
         allow_reentry=True,
     )
 
-    app.add_handler(auth_conv)
+    # --------------------------
+    # 1️⃣ /start — только выбор языка
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['START']}$"), start))
+
+    # --------------------------
+    # 2️⃣ Callback после выбора языка (обязательно выше verify!)
+    # При первом /start и при смене языка через /lang
+    app.add_handler(CallbackQueryHandler(language_callback, pattern="^lang_(ru|en|zh)$"))
+
+    # --------------------------
+    # 3️⃣ verify и остальные функционалы
+    app.add_handler(auth_conv)
+
+    # --------------------------
+    # 4️⃣ Остальные кнопки и callback'и
     app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['MENU']}$"), show_menu))
     app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['MARKETPLACE']}$"), open_marketplace))
     app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['SPACE']}$"), open_space))
@@ -332,7 +347,6 @@ def main():
     app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['CHANGE_DORM']}$"), change_dorm))
     app.add_handler(CommandHandler("lang", language_menu))
     app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['LANG']}$"), language_menu))
-    app.add_handler(CallbackQueryHandler(language_set_callback, pattern="^lang_(ru|en|zh)$"))
 
 
     app.add_handler(conv)
