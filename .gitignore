@@ -6,3 +6,6 @@ __pycache__/
 bot/local.db
 local.db
 *.db
+
+
+venv/

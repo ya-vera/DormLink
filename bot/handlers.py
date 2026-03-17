@@ -23,6 +23,7 @@ from models import (
     UserProfile,
     ZoneBooking,
 )
+from translation import build_bilingual, format_bilingual_for_user
 
 TYPE, CATEGORY, DESCRIPTION, CONTACT, PHOTO = range(5)
 AUTH_EMAIL, AUTH_CODE = range(10, 12)
@@ -34,6 +35,7 @@ BTN_START = "🏠 Старт"
 BTN_MENU = "📌 Меню"
 BTN_VERIFY = "🔐 Авторизация"
 BTN_CHANGE_DORM = "🏢 Сменить общежитие"
+BTN_LANG = "🌐 Язык / Language"
 BTN_MARKETPLACE = "🛍 Внутренний маркетплейс"
 BTN_SPACE = "🏢 Управление пространством"
 BTN_COMMS = "💬 Коммуникация и сервис"
@@ -86,6 +88,29 @@ ALLOWED_CATEGORIES = [
     "Другое",
 ]
 
+TYPE_EN = {
+    "Продам": "Sell",
+    "Куплю": "Buy",
+}
+
+LF_TYPE_EN = {
+    "Потеряно": "Lost",
+    "Найдено": "Found",
+}
+
+CATEGORY_EN = {
+    "Книги": "Books",
+    "Мебель": "Furniture",
+    "Техника": "Electronics",
+    "Одежда": "Clothes",
+    "Аксессуары": "Accessories",
+    "Спорт": "Sport",
+    "Еда": "Food",
+    "Косметика": "Cosmetics",
+    "Игры": "Games",
+    "Другое": "Other",
+}
+
 
 def _menu_keyboard(is_verified: bool) -> ReplyKeyboardMarkup:
     if not is_verified:
@@ -94,6 +119,7 @@ def _menu_keyboard(is_verified: bool) -> ReplyKeyboardMarkup:
         rows = [
             [BTN_MARKETPLACE, BTN_SPACE],
             [BTN_COMMS, BTN_CHANGE_DORM],
+            [BTN_LANG],
             [BTN_INFO],
         ]
     return ReplyKeyboardMarkup(rows, resize_keyboard=True)
@@ -184,6 +210,11 @@ async def _ensure_verified(update: Update) -> UserProfile | None:
     return None
 
 
+def _user_lang(profile: UserProfile | None) -> str:
+    lang = (getattr(profile, "preferred_language", None) or "ru").strip().lower()
+    return "en" if lang == "en" else "ru"
+
+
 async def _ensure_dorm_selected(update: Update, profile: UserProfile) -> bool:
     if profile.selected_dorm:
         return True
@@ -249,13 +280,28 @@ def _smtp_send_verification(email: str, code: str) -> tuple[bool, str]:
 
 
 
-def _listing_text(listing: Listing) -> str:
+def _listing_text_for_lang(listing: Listing, viewer_lang: str) -> str:
     created = listing.created_at.strftime("%d.%m %H:%M")
+    type_primary = listing.type
+    type_secondary = TYPE_EN.get(listing.type, listing.type)
+    cat_primary = listing.category
+    cat_secondary = CATEGORY_EN.get(listing.category, listing.category)
+
+    if viewer_lang == "en":
+        type_primary, type_secondary = type_secondary, listing.type
+        cat_primary, cat_secondary = cat_secondary, listing.category
+
+    type_txt = type_primary if type_secondary == type_primary else f"{type_primary} ({type_secondary})"
+    cat_txt = cat_primary if cat_secondary == cat_primary else f"{cat_primary} ({cat_secondary})"
+    desc_txt = format_bilingual_for_user(listing.description_ru, listing.description_en, viewer_lang)
+
+    contact_label = "Contact" if viewer_lang == "en" else "Контакт"
+    created_label = "Added" if viewer_lang == "en" else "Добавлено"
     return (
-        f"#{listing.id}  {listing.type.upper()} | {listing.category}\n"
-        f"{listing.description}\n"
-        f"Контакт: {listing.contact}\n"
-        f"Добавлено: {created}"
+        f"#{listing.id}  {type_txt.upper()} | {cat_txt}\n"
+        f"{desc_txt}\n"
+        f"{contact_label}: {listing.contact}\n"
+        f"{created_label}: {created}"
     )
 
 
@@ -265,7 +311,9 @@ def _reply_message(update: Update):
 
 async def _send_listing(update: Update, listing: Listing, with_actions: bool = False) -> None:
     message = _reply_message(update)
-    text = _listing_text(listing)
+    viewer_profile = _profile_for_update(update)
+    viewer_lang = _user_lang(viewer_profile)
+    text = _listing_text_for_lang(listing, viewer_lang)
     markup = None
     if with_actions:
         is_buy_request = listing.type.strip().lower() == "куплю"
@@ -537,12 +585,16 @@ async def add_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def _create_listing_from_draft(profile: UserProfile, user_id: int, context, photo_file_id=None, photo_type=None) -> Listing:
+    bilingual = build_bilingual(context.user_data["description"])
     return Listing.create(
         author_id=user_id,
         dorm=profile.selected_dorm,
         type=context.user_data["type"],
         category=context.user_data["category"],
         description=context.user_data["description"],
+        description_lang=bilingual.detected_lang,
+        description_ru=bilingual.ru,
+        description_en=bilingual.en,
         contact=context.user_data["contact"],
         photo_file_id=photo_file_id,
         photo_type=photo_type,
@@ -705,12 +757,19 @@ async def lostfound_photo_input(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text("Это не изображение. Нужен PNG/JPG/WEBP.")
             return LF_PHOTO
 
+    title_bi = build_bilingual(context.user_data["lf_title"])
+    desc_bi = build_bilingual(context.user_data["lf_description"])
     LostFoundItem.create(
         author_id=update.effective_user.id,
         dorm=profile.selected_dorm,
         item_type=context.user_data["lf_type"],
         title=context.user_data["lf_title"],
         description=context.user_data["lf_description"],
+        text_lang=desc_bi.detected_lang if desc_bi.detected_lang != "unknown" else title_bi.detected_lang,
+        title_ru=title_bi.ru,
+        title_en=title_bi.en,
+        description_ru=desc_bi.ru,
+        description_en=desc_bi.en,
         contact=context.user_data["lf_contact"],
         photo_file_id=photo_file_id,
         photo_type=photo_type,
@@ -748,12 +807,24 @@ async def lostfound_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def _send_lostfound_item(update: Update, item: LostFoundItem, show_actions: bool = False) -> None:
     message = _reply_message(update)
+    viewer_profile = _profile_for_update(update)
+    viewer_lang = _user_lang(viewer_profile)
     created = item.created_at.strftime("%d.%m %H:%M")
+    title_txt = format_bilingual_for_user(item.title_ru, item.title_en, viewer_lang)
+    desc_txt = format_bilingual_for_user(item.description_ru, item.description_en, viewer_lang)
+    type_primary = item.item_type
+    type_secondary = LF_TYPE_EN.get(item.item_type, item.item_type)
+    if viewer_lang == "en":
+        type_primary, type_secondary = type_secondary, item.item_type
+    item_type_txt = type_primary if type_secondary == type_primary else f"{type_primary} ({type_secondary})"
+
+    contact_label = "Contact" if viewer_lang == "en" else "Контакт"
+    created_label = "Added" if viewer_lang == "en" else "Добавлено"
     text = (
-        f"#{item.id} {item.item_type} | {item.title}\n"
-        f"{item.description}\n"
-        f"Контакт: {item.contact}\n"
-        f"Добавлено: {created}"
+        f"#{item.id} {item_type_txt} | {title_txt}\n"
+        f"{desc_txt}\n"
+        f"{contact_label}: {item.contact}\n"
+        f"{created_label}: {created}"
     )
     markup = None
     if show_actions:
@@ -1460,3 +1531,32 @@ async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/announcements /ticket_new /my_tickets"
     )
     await update.message.reply_text(text)
+
+
+async def language_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = await _ensure_verified(update)
+    if not profile:
+        return
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("Русский", callback_data="lang_ru")],
+            [InlineKeyboardButton("English", callback_data="lang_en")],
+        ]
+    )
+    await _reply(update, "Выберите язык интерфейса / Choose language:", reply_markup=keyboard)
+
+
+async def language_set_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    profile = _profile_for_update(update)
+    if not _is_verified(profile):
+        await query.message.reply_text("Сначала пройдите авторизацию.")
+        return
+    lang = query.data.replace("lang_", "").strip().lower()
+    if lang not in {"ru", "en"}:
+        await query.message.reply_text("Неизвестный язык.")
+        return
+    profile.preferred_language = lang
+    profile.save()
+    await query.edit_message_text("Готово ✅ Язык обновлён." if lang == "ru" else "Done ✅ Language updated.")

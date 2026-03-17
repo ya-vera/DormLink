@@ -20,6 +20,7 @@ from handlers import (
     BTN_ADD,
     BTN_CHANGE_DORM,
     BTN_INFO,
+    BTN_LANG,
     BTN_LIST,
     BTN_LOSTFOUND_ADD,
     BTN_LOSTFOUND_LIST,
@@ -100,6 +101,8 @@ from handlers import (
     zone_booking_start,
     zone_booking_zone_selected,
     announcements_list,
+    language_menu,
+    language_set_callback,
 )
 
 from models import (
@@ -143,6 +146,75 @@ def _ensure_zonebooking_columns() -> None:
             pass
 
 
+def _table_columns_sqlite(table: str) -> set[str]:
+    try:
+        rows = db.execute_sql(f"PRAGMA table_info({table});").fetchall()
+        return {row[1] for row in rows}
+    except Exception:
+        return set()
+
+
+def _table_columns_postgres(table: str) -> set[str]:
+    try:
+        rows = db.execute_sql(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = %s;",
+            (table.lower(),),
+        ).fetchall()
+        return {row[0] for row in rows}
+    except Exception:
+        return set()
+
+
+def _ensure_translation_columns() -> None:
+    """
+    Add translation-related columns in existing DBs.
+    Uses PRAGMA for SQLite and information_schema for Postgres.
+    """
+    is_postgres = isinstance(db, PostgresqlDatabase)
+    if is_postgres:
+        existing_listing = _table_columns_postgres("listing")
+        existing_lf = _table_columns_postgres("lostfounditem")
+        existing_profile = _table_columns_postgres("userprofile")
+    else:
+        existing_listing = _table_columns_sqlite("listing")
+        existing_lf = _table_columns_sqlite("lostfounditem")
+        existing_profile = _table_columns_sqlite("userprofile")
+
+    listing_add = [
+        ("description_lang", "VARCHAR(16)"),
+        ("description_ru", "TEXT"),
+        ("description_en", "TEXT"),
+    ]
+    lf_add = [
+        ("text_lang", "VARCHAR(16)"),
+        ("title_ru", "VARCHAR(255)"),
+        ("title_en", "VARCHAR(255)"),
+        ("description_ru", "TEXT"),
+        ("description_en", "TEXT"),
+    ]
+    profile_add = [
+        ("preferred_language", "VARCHAR(8) DEFAULT 'ru'"),
+    ]
+
+    def add_if_missing(table: str, existing: set[str], col: str, ddl: str) -> None:
+        if col in existing:
+            return
+        try:
+            if is_postgres:
+                db.execute_sql(f'ALTER TABLE "{table}" ADD COLUMN IF NOT EXISTS {col} {ddl};')
+            else:
+                db.execute_sql(f"ALTER TABLE {table} ADD COLUMN {col} {ddl};")
+        except Exception:
+            pass
+
+    for col, ddl in listing_add:
+        add_if_missing("listing", existing_listing, col, ddl)
+    for col, ddl in lf_add:
+        add_if_missing("lostfounditem", existing_lf, col, ddl)
+    for col, ddl in profile_add:
+        add_if_missing("userprofile", existing_profile, col, ddl)
+
+
 def main():
     if isinstance(db, PostgresqlDatabase):
         print("Подключение к PostgreSQL на Render")
@@ -163,6 +235,7 @@ def main():
         safe=True,
     )
     _ensure_zonebooking_columns()
+    _ensure_translation_columns()
     print("База данных готова")
 
     app = ApplicationBuilder().token(TOKEN).build()
@@ -272,6 +345,9 @@ def main():
     app.add_handler(CallbackQueryHandler(delete_listing_callback, pattern="^del_\\d+$"))
     app.add_handler(CommandHandler("change", change_dorm))
     app.add_handler(MessageHandler(filters.Regex(f"^{BTN_CHANGE_DORM}$"), change_dorm))
+    app.add_handler(CommandHandler("lang", language_menu))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_LANG}$"), language_menu))
+    app.add_handler(CallbackQueryHandler(language_set_callback, pattern="^lang_(ru|en)$"))
 
 
     app.add_handler(conv)

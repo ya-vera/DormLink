@@ -26,6 +26,7 @@ class UserProfile(BaseModel):
     email = CharField(null=True)
     is_verified = BooleanField(default=False)
     selected_dorm = CharField(null=True)
+    preferred_language = CharField(default="ru")  # ru | en
     verification_code = CharField(null=True)
     code_expires_at = DateTimeField(null=True)
     created_at = DateTimeField(default=datetime.utcnow)
@@ -38,6 +39,9 @@ class Listing(BaseModel):
     type = CharField()
     category = CharField()
     description = TextField()
+    description_lang = CharField(null=True)  # detected language of original description
+    description_ru = TextField(null=True)
+    description_en = TextField(null=True)
     contact = CharField()
     status = CharField(default="активно")
     created_at = DateTimeField(constraints=[SQL("DEFAULT CURRENT_TIMESTAMP")])
@@ -52,6 +56,11 @@ class LostFoundItem(BaseModel):
     item_type = CharField()  # Потеряно / Найдено
     title = CharField()
     description = TextField()
+    text_lang = CharField(null=True)
+    title_ru = CharField(null=True)
+    title_en = CharField(null=True)
+    description_ru = TextField(null=True)
+    description_en = TextField(null=True)
     contact = CharField()
     status = CharField(default="активно")
     created_at = DateTimeField(constraints=[SQL("DEFAULT CURRENT_TIMESTAMP")])
