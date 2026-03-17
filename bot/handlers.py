@@ -879,8 +879,7 @@ def _menu_keyboard(is_verified: bool, lang: str) -> ReplyKeyboardMarkup:
         rows = [
             [_btn("MARKETPLACE", lang), _btn("SPACE", lang)],
             [_btn("COMMS", lang), _btn("CHANGE_DORM", lang)],
-            [_btn("LANG", lang)],
-            [_btn("INFO", lang)],
+            [_btn("LANG", lang), _btn("INFO", lang)],
         ]
     return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
@@ -1897,14 +1896,17 @@ async def _send_listings_by_type(update, listing_type, listing_type_label)-> Non
         .order_by(Listing.created_at.desc())
     )
     if not listings.exists():
-        t(profile, "SECTION_EMPTY", section=listing_type_label)
+        await _reply(update, t(profile, "SECTION_EMPTY", section=listing_type_label))
         return
 
-    t(
-        profile,
-        "SECTION_HEADER",
-        section=listing_type_label,
-        dorm=profile.selected_dorm,
+    await _reply(
+        update,
+        t(
+            profile,
+            "SECTION_HEADER",
+            section=listing_type_label,
+            dorm=profile.selected_dorm,
+        ),
     )
     for listing in listings[:15]:
         await _send_listing(update, listing, with_actions=False)
