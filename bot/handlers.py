@@ -1197,14 +1197,22 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # показываем подтверждение выбора языка
     await query.message.reply_text(t(profile, "LANG_SAVED"))
 
-    # сразу предлагаем пройти verify
-    keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(t(profile, "VERIFY_START_BTN"), callback_data="verify_start")]]
-    )
-    await query.message.reply_text(
-        t(profile, "NOW_VERIFY"),  # текст через t() на выбранном языке
-        reply_markup=keyboard
-    )
+    # если пользователь ещё не верифицирован — предлагаем пройти verify
+    if not _is_verified(profile):
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton(t(profile, "VERIFY_START_BTN"), callback_data="verify_start")]]
+        )
+        await query.message.reply_text(
+            t(profile, "NOW_VERIFY"),
+            reply_markup=keyboard,
+        )
+    else:
+        # если уже верифицирован, просто показываем обновлённое меню на новом языке
+        lang_now = _user_lang(profile)
+        await query.message.reply_text(
+            t(profile, "MAIN_MENU_TEXT"),
+            reply_markup=_menu_keyboard(True, lang_now),
+        )
 
 
 async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
