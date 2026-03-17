@@ -617,8 +617,7 @@ def _menu_keyboard(is_verified: bool, lang: str) -> ReplyKeyboardMarkup:
         rows = [
             [_btn("MARKETPLACE", lang), _btn("SPACE", lang)],
             [_btn("COMMS", lang), _btn("CHANGE_DORM", lang)],
-            [_btn("LANG", lang)],
-            [_btn("INFO", lang)],
+            [_btn("LANG", lang), _btn("INFO", lang)],
         ]
     return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
