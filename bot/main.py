@@ -103,6 +103,7 @@ from handlers import (
     announcements_list,
     language_menu,
     language_set_callback,
+    retranslate_all,
 )
 
 from models import (
@@ -184,13 +185,16 @@ def _ensure_translation_columns() -> None:
         ("description_lang", "VARCHAR(16)"),
         ("description_ru", "TEXT"),
         ("description_en", "TEXT"),
+        ("description_zh", "TEXT"),
     ]
     lf_add = [
         ("text_lang", "VARCHAR(16)"),
         ("title_ru", "VARCHAR(255)"),
         ("title_en", "VARCHAR(255)"),
+        ("title_zh", "VARCHAR(255)"),
         ("description_ru", "TEXT"),
         ("description_en", "TEXT"),
+        ("description_zh", "TEXT"),
     ]
     profile_add = [
         ("preferred_language", "VARCHAR(8) DEFAULT 'ru'"),
@@ -347,7 +351,7 @@ def main():
     app.add_handler(MessageHandler(filters.Regex(f"^{BTN_CHANGE_DORM}$"), change_dorm))
     app.add_handler(CommandHandler("lang", language_menu))
     app.add_handler(MessageHandler(filters.Regex(f"^{BTN_LANG}$"), language_menu))
-    app.add_handler(CallbackQueryHandler(language_set_callback, pattern="^lang_(ru|en)$"))
+    app.add_handler(CallbackQueryHandler(language_set_callback, pattern="^lang_(ru|en|zh)$"))
 
 
     app.add_handler(conv)
@@ -373,6 +377,7 @@ def main():
     app.add_handler(CommandHandler("ticket_status", ticket_status_update))
     app.add_handler(CommandHandler("delete", delete_listing))
     app.add_handler(CommandHandler("buy", buy_listing))
+    app.add_handler(CommandHandler("retranslate", retranslate_all))
     app.add_handler(CommandHandler("info", info_command))
     app.add_handler(CommandHandler("help", info_command))
     app.add_handler(MessageHandler(filters.Regex(f"^{BTN_INFO}$"), info_command))

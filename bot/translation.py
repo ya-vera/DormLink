@@ -9,6 +9,11 @@ except Exception:  # pragma: no cover
     GoogleTranslator = None
 
 try:
+    from deep_translator import MyMemoryTranslator  # type: ignore
+except Exception:  # pragma: no cover
+    MyMemoryTranslator = None
+
+try:
     from langdetect import detect  # type: ignore
 except Exception:  # pragma: no cover
     detect = None
@@ -16,6 +21,7 @@ except Exception:  # pragma: no cover
 
 _CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
 _LATIN_RE = re.compile(r"[A-Za-z]")
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")  # CJK Unified Ideographs (basic)
 
 
 def detect_language(text: str) -> str:
@@ -30,10 +36,13 @@ def detect_language(text: str) -> str:
     # Fast script heuristics first (more stable for short texts).
     has_cyr = bool(_CYRILLIC_RE.search(t))
     has_lat = bool(_LATIN_RE.search(t))
+    has_cjk = bool(_CJK_RE.search(t))
     if has_cyr and not has_lat:
         return "ru"
     if has_lat and not has_cyr:
         return "en"
+    if has_cjk and not (has_cyr or has_lat):
+        return "zh"
 
     if detect is None:
         return "unknown"
@@ -43,15 +52,27 @@ def detect_language(text: str) -> str:
     except Exception:
         return "unknown"
 
-    if lang in {"ru", "en"}:
+    if lang in {"ru", "en", "zh"}:
         return lang
     return "unknown"
 
 
 def _translate_google(text: str, target: str) -> str:
     if GoogleTranslator is None:
-        return text
+        raise RuntimeError("GoogleTranslator unavailable")
     return GoogleTranslator(source="auto", target=target).translate(text)
+
+
+def _translate_mymemory(text: str, target: str) -> str:
+    if MyMemoryTranslator is None:
+        raise RuntimeError("MyMemoryTranslator unavailable")
+    # deep-translator expects "langpair" like "ru|en"
+    detected = detect_language(text)
+    source = detected if detected in {"ru", "en"} else "auto"
+    if source == "auto":
+        # MyMemory doesn't support auto reliably; assume opposite of target as a fallback.
+        source = "ru" if target == "en" else "en"
+    return MyMemoryTranslator(source=source, target=target).translate(text)
 
 
 def translate_text(text: str, target: str) -> str:
@@ -63,58 +84,87 @@ def translate_text(text: str, target: str) -> str:
     if not t:
         return ""
 
-    if target not in {"ru", "en"}:
+    if target not in {"ru", "en", "zh"}:
         return t
 
-    try:
-        return _translate_google(t, target=target)
-    except Exception:
-        # Fail safe: return original if translation unavailable.
-        return t
+    for translator in (_translate_google, _translate_mymemory):
+        try:
+            out = translator(t, target=target)
+            out = (out or "").strip()
+            if out:
+                return out
+        except Exception:
+            continue
+
+    # Fail safe: return original if translation unavailable.
+    return t
 
 
 @dataclass(frozen=True)
-class BilingualText:
+class MultilingualText:
     detected_lang: str
     ru: str
     en: str
+    zh: str
 
 
-def build_bilingual(text: str) -> BilingualText:
+def build_multilingual(text: str) -> MultilingualText:
     detected = detect_language(text)
     t = (text or "").strip()
     if detected == "ru":
         ru = t
         en = translate_text(t, "en")
-        return BilingualText(detected_lang="ru", ru=ru, en=en)
+        zh = translate_text(t, "zh")
+        return MultilingualText(detected_lang="ru", ru=ru, en=en, zh=zh)
     if detected == "en":
         en = t
         ru = translate_text(t, "ru")
-        return BilingualText(detected_lang="en", ru=ru, en=en)
+        zh = translate_text(t, "zh")
+        return MultilingualText(detected_lang="en", ru=ru, en=en, zh=zh)
+    if detected == "zh":
+        zh = t
+        en = translate_text(t, "en")
+        ru = translate_text(t, "ru")
+        return MultilingualText(detected_lang="zh", ru=ru, en=en, zh=zh)
 
     # Unknown: keep as-is, try best-effort EN.
     en = translate_text(t, "en")
-    return BilingualText(detected_lang="unknown", ru=t, en=en)
+    ru = translate_text(t, "ru")
+    zh = translate_text(t, "zh")
+    return MultilingualText(detected_lang="unknown", ru=ru or t, en=en or t, zh=zh or t)
 
 
-def format_bilingual_for_user(ru: str | None, en: str | None, user_lang: str) -> str:
+def format_multilingual_for_user(
+    ru: str | None,
+    en: str | None,
+    zh: str | None,
+    user_lang: str,
+) -> str:
     """
-    Returns "primary\n(SECONDARY: ...)" when both exist and differ.
+    Returns primary + other languages in parentheses.
+    Example (ru user): "стул\n(EN: chair; 中文: 椅子)"
     """
     ru_t = (ru or "").strip()
     en_t = (en or "").strip()
+    zh_t = (zh or "").strip()
 
-    if user_lang == "en":
-        primary, secondary, label = en_t or ru_t, ru_t, "RU"
-    else:
-        primary, secondary, label = ru_t or en_t, en_t, "EN"
+    user_lang = (user_lang or "ru").strip().lower()
+    if user_lang not in {"ru", "en", "zh"}:
+        user_lang = "ru"
 
-    primary = (primary or "").strip()
-    secondary = (secondary or "").strip()
-
+    primary = {"ru": ru_t, "en": en_t, "zh": zh_t}.get(user_lang, ru_t) or ""
     if not primary:
-        return ""
-    if not secondary or secondary == primary:
+        primary = ru_t or en_t or zh_t
+
+    parts: list[str] = []
+    if user_lang != "ru" and ru_t and ru_t != primary:
+        parts.append(f"RU: {ru_t}")
+    if user_lang != "en" and en_t and en_t != primary:
+        parts.append(f"EN: {en_t}")
+    if user_lang != "zh" and zh_t and zh_t != primary:
+        parts.append(f"中文: {zh_t}")
+
+    if not parts:
         return primary
-    return f"{primary}\n({label}: {secondary})"
+    return f"{primary}\n(" + "; ".join(parts) + ")"
 
