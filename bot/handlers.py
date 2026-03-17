@@ -94,7 +94,7 @@ def _menu_keyboard(is_verified: bool) -> ReplyKeyboardMarkup:
         rows = [
             [BTN_MARKETPLACE, BTN_SPACE],
             [BTN_COMMS, BTN_CHANGE_DORM],
-            [BTN_MENU, BTN_INFO],
+            [BTN_INFO],
         ]
     return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
@@ -1116,15 +1116,21 @@ async def my_bookings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await _ensure_verified(update)
     if not profile:
         return
+    if not profile.selected_dorm:
+        await update.message.reply_text("Сначала выберите общежитие.")
+        return
     bookings = (
         ZoneBooking.select()
-        .where(ZoneBooking.user_id == update.effective_user.id)
+        .where(
+            ZoneBooking.user_id == update.effective_user.id,
+            ZoneBooking.dorm == profile.selected_dorm,
+        )
         .order_by(ZoneBooking.created_at.desc())
     )
     if not bookings.exists():
-        await update.message.reply_text("У вас пока нет заявок на бронирование.")
+        await update.message.reply_text(f"У вас пока нет заявок на бронирование в {profile.selected_dorm}.")
         return
-    await update.message.reply_text("Ваши бронирования:")
+    await update.message.reply_text(f"Ваши бронирования в {profile.selected_dorm}:")
     for b in bookings[:10]:
         markup = None
         if b.status in {"ожидает подтверждения", "подтверждено"}:
@@ -1415,7 +1421,10 @@ async def delete_listing_callback(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = _profile_for_update(update)
+    dorm_text = profile.selected_dorm if profile.selected_dorm else "не выбрано"
     text = (
+        f"Текущее общежитие: {dorm_text}\n\n"
         "DormLink — сервис для жизни в общежитии.\n\n"
         "Разделы меню:\n"
         "1) 🛍 Внутренний маркетплейс: купля/продажа + потеряшки\n"
