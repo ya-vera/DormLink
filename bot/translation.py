@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
+
+import httpx
 
 try:
     from deep_translator import GoogleTranslator  # type: ignore
@@ -12,6 +15,16 @@ try:
     from deep_translator import MyMemoryTranslator  # type: ignore
 except Exception:  # pragma: no cover
     MyMemoryTranslator = None
+
+try:
+    from deep_translator import LingueeTranslator  # type: ignore
+except Exception:  # pragma: no cover
+    LingueeTranslator = None
+
+try:
+    from deep_translator import PonsTranslator  # type: ignore
+except Exception:  # pragma: no cover
+    PonsTranslator = None
 
 try:
     from langdetect import detect  # type: ignore
@@ -74,6 +87,79 @@ def _translate_mymemory(text: str, target: str) -> str:
         source = "ru" if target == "en" else "en"
     return MyMemoryTranslator(source=source, target=target).translate(text)
 
+def _translate_linguee(text: str, target: str) -> str:
+    if LingueeTranslator is None:
+        raise RuntimeError("LingueeTranslator unavailable")
+    detected = detect_language(text)
+    if detected not in {"ru", "en"} or target not in {"ru", "en"}:
+        raise RuntimeError("Linguee supports ru/en only")
+    return LingueeTranslator(source=detected, target=target).translate(text)
+
+
+def _translate_pons(text: str, target: str) -> str:
+    if PonsTranslator is None:
+        raise RuntimeError("PonsTranslator unavailable")
+    detected = detect_language(text)
+    if detected not in {"ru", "en"} or target not in {"ru", "en"}:
+        raise RuntimeError("Pons supports ru/en only")
+    return PonsTranslator(source=detected, target=target).translate(text)
+
+
+def _llm_enabled() -> bool:
+    mode = (os.getenv("TRANSLATION_MODE", "") or "").strip().lower()
+    if mode in {"llm", "openai"}:
+        return True
+    return False
+
+
+def _translate_llm(text: str, target: str) -> str:
+    """
+    LLM translation via OpenAI-compatible Chat Completions API.
+
+    Required env:
+    - LLM_API_KEY
+    Optional:
+    - LLM_API_BASE (default https://api.openai.com/v1)
+    - LLM_MODEL (default gpt-4o-mini)
+    """
+    api_key = (os.getenv("LLM_API_KEY", "") or "").strip()
+    if not api_key:
+        raise RuntimeError("LLM_API_KEY is not set")
+
+    base = (os.getenv("LLM_API_BASE", "") or "").strip() or "https://api.openai.com/v1"
+    model = (os.getenv("LLM_MODEL", "") or "").strip() or "gpt-4o-mini"
+
+    src = detect_language(text)
+    # Keep slang/meaning; return ONLY translated text, no quotes.
+    system = (
+        "You are a professional translator for dorm marketplace posts. "
+        "Preserve meaning, tone, and slang. Keep product names/brands. "
+        "Return ONLY the translated text, no explanations."
+    )
+    user = (
+        f"Translate from {src} to {target}. "
+        "If the text is already in the target language, return it unchanged.\n\n"
+        f"TEXT:\n{text}"
+    )
+
+    url = base.rstrip("/") + "/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "temperature": 0.2,
+    }
+
+    with httpx.Client(timeout=20) as client:
+        r = client.post(url, headers=headers, json=payload)
+        r.raise_for_status()
+        data = r.json()
+        out = data["choices"][0]["message"]["content"]
+        return (out or "").strip()
+
 
 def translate_text(text: str, target: str) -> str:
     """
@@ -87,7 +173,13 @@ def translate_text(text: str, target: str) -> str:
     if target not in {"ru", "en", "zh"}:
         return t
 
-    for translator in (_translate_google, _translate_mymemory):
+    translators = []
+    if _llm_enabled():
+        translators.append(_translate_llm)
+    # fallback translators (optional)
+    translators.extend([_translate_google, _translate_mymemory, _translate_linguee, _translate_pons])
+
+    for translator in translators:
         try:
             out = translator(t, target=target)
             out = (out or "").strip()
