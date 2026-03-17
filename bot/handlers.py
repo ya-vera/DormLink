@@ -90,12 +90,18 @@ def button_variants(key: str) -> list[str]:
     return [v for v in d.values() if v]
 
 
+
 BUTTON_REGEX: dict[str, str] = {
     key: "(?:" + "|".join(re.escape(v) for v in button_variants(key)) + ")"
     for key in BUTTON_LABELS
 }
 
 MESSAGES: dict[str, dict[str, str]] = {
+    "SECTION_MARKETPLACE": {
+        "ru": "Раздел: Внутренний маркетплейс\nЗдесь доступны купля/продажа и потеряшки.",
+        "en": "Section: Marketplace\nBuy/Sell and Lost&Found.",
+        "zh": "板块：集市\n买/卖 与 失物招领。",
+    },
     # generic
     "NEED_VERIFY_FIRST": {
         "ru": "Сначала пройдите авторизацию.",
@@ -420,6 +426,178 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Done ✅ Language updated.",
         "zh": "完成 ✅ 语言已更新。",
     },
+    "MY_ACTIVE_LISTINGS": {
+        "ru": "Ваши активные объявления в {dorm}:",
+        "en": "Your active listings in {dorm}:",
+        "zh": "您在 {dorm} 的有效信息：",
+    },
+    "SECTION_MARKETPLACE": {
+        "ru": "Раздел: Внутренний маркетплейс\nЗдесь доступны купля/продажа и потеряшки.",
+        "en": "Section: Marketplace\nBuy/Sell and Lost&Found.",
+        "zh": "板块：集市\n买/卖 与 失物招领。",
+    },
+    "SECTION_SPACE": {
+        "ru": "Раздел: Управление пространством\nЗдесь можно бронировать зоны и смотреть стиралки.",
+        "en": "Section: Space\nBook zones and check laundry.",
+        "zh": "板块：空间管理\n预约区域并查看洗衣机。",
+    },
+    "SECTION_COMMS": {
+        "ru": "Раздел: Коммуникация и сервис\nОфициальные объявления и обращения.",
+        "en": "Section: Communication & Service\nAnnouncements and tickets.",
+        "zh": "板块：沟通与服务\n公告和请求。",
+    },
+    "ZONE_COWORKING": {"ru":"Коворкинг","en":"Coworking","zh":"自习室"},
+    "ZONE_KITCHEN": {"ru":"Кухня","en":"Kitchen","zh":"厨房"},
+    "ZONE_TUTOR": {"ru":"Репетиторская","en":"Study room","zh":"学习室"},
+    "NO_PHOTO": {
+        "ru": "(без фото)",
+        "en": "(no photo)",
+        "zh": "(无图片)",
+    },
+    "LAUNDRY_ROW": {
+        "ru": "{name}: {status}",
+        "en": "{name}: {status}",
+        "zh": "{name}: {status}",
+    },
+    "ANN_ROW":{
+    "ru":"[{date}] {title}\n{text}",
+    "en":"[{date}] {title}\n{text}",
+    "zh":"[{date}] {title}\n{text}",
+    },
+    "LF_LOST":{"ru":"🔍 Потеряно","en":"Lost","zh":"丢失"},
+    "LF_FOUND":{"ru":"📦 Найдено","en":"Found","zh":"找到"},
+    "BOUGHT": {
+        "ru": "✅ Куплено",
+        "en": "✅ Bought",
+        "zh": "已购买",
+    },
+
+    "SOLD": {
+        "ru": "✅ Продано",
+        "en": "✅ Sold",
+        "zh": "已售",
+    },
+
+    "DELETE": {
+        "ru": "🗑 Удалить",
+        "en": "🗑 Delete",
+        "zh": "删除",
+    },
+
+    "NO_PHOTO": {
+        "ru": "(без фото)",
+        "en": "(no photo)",
+        "zh": "(无图片)",
+    },
+    "LF_HEADER": {
+        "ru": "Потеряшки в {dorm}:",
+        "en": "Lost & Found in {dorm}:",
+        "zh": "{dorm} 的失物招领：",
+    },
+    "LF_ITEM_TEXT": {
+        "ru": "#{id} {type} | {title}\n{desc}\nКонтакт: {contact}\nДобавлено: {created}",
+        "en": "#{id} {type} | {title}\n{desc}\nContact: {contact}\nAdded: {created}",
+        "zh": "#{id} {type} | {title}\n{desc}\n联系方式: {contact}\n发布: {created}",
+    },
+
+    "LF_DONE": {
+        "ru": "✅ Передано владельцу",
+        "en": "✅ Returned",
+        "zh": "已归还",
+    },
+    "BUY": {
+        "ru": "Куплю",
+        "en": "Buy",
+        "zh": "求购",
+    },
+
+    "SELL": {
+        "ru": "Продам",
+        "en": "Sell",
+        "zh": "出售",
+    },
+    "TODAY": {
+        "ru": "Сегодня",
+        "en": "Today",
+        "zh": "今天",
+    },
+
+    "TOMORROW": {
+        "ru": "Завтра",
+        "en": "Tomorrow",
+        "zh": "明天",
+    },
+    "BOOKING_ROW": {
+        "ru": "#{id} {zone}\nВремя: {time}\nСтатус: {status}",
+        "en": "#{id} {zone}\nTime: {time}\nStatus: {status}",
+        "zh": "#{id} {zone}\n时间: {time}\n状态: {status}",
+    },
+    "TICKET_CREATED": {
+        "ru": "Обращение #{id} зарегистрировано ✅",
+        "en": "Ticket #{id} created ✅",
+        "zh": "请求 #{id} 已创建 ✅",
+    },
+    "TICKET_ROW": {
+        "ru": "#{id} | {theme}\n{desc}\nСтатус: {status}",
+        "en": "#{id} | {theme}\n{desc}\nStatus: {status}",
+        "zh": "#{id} | {theme}\n{desc}\n状态: {status}",
+    },
+    "BOUGHT_DONE": {
+        "ru": "купленным",
+        "en": "bought",
+        "zh": "已购买",
+    },
+
+    "SOLD_DONE": {
+        "ru": "проданным",
+        "en": "sold",
+        "zh": "已售",
+    },
+    "NOT_SELECTED": {
+        "ru": "не выбрано",
+        "en": "not selected",
+        "zh": "未选择",
+    },
+
+    "INFO_TEXT": {
+        "ru":
+            "Текущее общежитие: {dorm}\n\n"
+            "DormLink — сервис для жизни в общежитии.\n\n"
+            "Разделы меню:\n"
+            "1) 🛍 Внутренний маркетплейс: купля/продажа + потеряшки\n"
+            "2) 🏢 Управление пространством: бронь зон + статус стиралок\n"
+            "3) 💬 Коммуникация и сервис: объявления организации + обращения\n\n"
+            "Ключевые команды:\n"
+            "/start /verify /change /info\n"
+            "/add /list /my /delete <id> /buy <id>\n"
+            "/lostfound_add /lostfound_list\n"
+            "/book_zone /my_bookings /laundry\n"
+            "/announcements /ticket_new /my_tickets",
+
+        "en":
+            "Current dorm: {dorm}\n\n"
+            "DormLink — dorm life service.\n\n"
+            "Menu:\n"
+            "1) Marketplace: buy/sell + lost&found\n"
+            "2) Space: zones booking + laundry\n"
+            "3) Communication: announcements + tickets\n\n"
+            "Commands:\n"
+            "/start /verify /change /info\n"
+            "/add /list /my /delete <id> /buy <id>\n"
+            "/lostfound_add /lostfound_list\n"
+            "/book_zone /my_bookings /laundry\n"
+            "/announcements /ticket_new /my_tickets",
+
+        "zh":
+            "当前宿舍: {dorm}\n\n"
+            "DormLink — 宿舍服务系统\n\n"
+            "菜单:\n"
+            "1) 集市\n"
+            "2) 空间管理\n"
+            "3) 通信\n\n"
+            "命令:\n"
+            "/start /verify /change /info",
+    }
 }
 
 
@@ -617,7 +795,8 @@ def _menu_keyboard(is_verified: bool, lang: str) -> ReplyKeyboardMarkup:
         rows = [
             [_btn("MARKETPLACE", lang), _btn("SPACE", lang)],
             [_btn("COMMS", lang), _btn("CHANGE_DORM", lang)],
-            [_btn("LANG", lang), _btn("INFO", lang)],
+            [_btn("LANG", lang)],
+            [_btn("INFO", lang)],
         ]
     return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
@@ -821,27 +1000,59 @@ async def _send_listing(update: Update, listing: Listing, with_actions: bool = F
     message = _reply_message(update)
     viewer_profile = _profile_for_update(update)
     viewer_lang = _user_lang(viewer_profile)
+
     text = _listing_text_for_lang(listing, viewer_lang)
+
     markup = None
+
     if with_actions:
         is_buy_request = listing.type.strip().lower() == "куплю"
-        close_label = "✅ Куплено" if is_buy_request else "✅ Продано"
+
+        close_label = (
+            t(viewer_profile, "BOUGHT")
+            if is_buy_request
+            else t(viewer_profile, "SOLD")
+        )
+
         markup = InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton(close_label, callback_data=f"mark_{listing.id}"),
-                    InlineKeyboardButton("🗑 Удалить", callback_data=f"del_{listing.id}"),
+                    InlineKeyboardButton(
+                        close_label,
+                        callback_data=f"mark_{listing.id}",
+                    ),
+                    InlineKeyboardButton(
+                        t(viewer_profile, "DELETE"),
+                        callback_data=f"del_{listing.id}",
+                    ),
                 ]
             ]
         )
 
     if listing.photo_file_id:
+
         if listing.photo_type == "photo":
-            await message.reply_photo(photo=listing.photo_file_id, caption=text, reply_markup=markup)
+
+            await message.reply_photo(
+                photo=listing.photo_file_id,
+                caption=text,
+                reply_markup=markup,
+            )
+
         else:
-            await message.reply_document(document=listing.photo_file_id, caption=text, reply_markup=markup)
+
+            await message.reply_document(
+                document=listing.photo_file_id,
+                caption=text,
+                reply_markup=markup,
+            )
+
     else:
-        await message.reply_text(text + "\n(без фото)", reply_markup=markup)
+
+        await message.reply_text(
+            text + "\n" + t(viewer_profile, "NO_PHOTO"),
+            reply_markup=markup,
+        )
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -883,19 +1094,9 @@ async def open_marketplace(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not await _ensure_dorm_selected(update, profile):
         return
-    lang = _user_lang(profile)
-    if lang == "en":
-        text = "Section: Marketplace\nBuy/Sell and Lost&Found."
-    elif lang == "zh":
-        text = "板块：集市\n买/卖 与 失物招领。"
-    else:
-        text = (
-            "Раздел: Внутренний маркетплейс\n"
-            "Здесь доступны купля/продажа и потеряшки."
-        )
     await update.message.reply_text(
-        text,
-        reply_markup=_marketplace_keyboard(lang),
+        t(profile, "SECTION_MARKETPLACE"),
+        reply_markup=_marketplace_keyboard(_user_lang(profile)),
     )
 
 
@@ -905,19 +1106,9 @@ async def open_space(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not await _ensure_dorm_selected(update, profile):
         return
-    lang = _user_lang(profile)
-    if lang == "en":
-        text = "Section: Space\nBook zones and check laundry status."
-    elif lang == "zh":
-        text = "板块：空间管理\n可预约公共区域并查看洗衣机状态。"
-    else:
-        text = (
-            "Раздел: Управление пространством\n"
-            "Здесь можно бронировать общие зоны и смотреть статус стиралок."
-        )
     await update.message.reply_text(
-        text,
-        reply_markup=_space_keyboard(lang),
+        t(profile, "SECTION_SPACE"),
+        reply_markup=_space_keyboard(_user_lang(profile)),
     )
 
 
@@ -927,19 +1118,9 @@ async def open_comms(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not await _ensure_dorm_selected(update, profile):
         return
-    lang = _user_lang(profile)
-    if lang == "en":
-        text = "Section: Communication & Service\nOfficial announcements and support tickets."
-    elif lang == "zh":
-        text = "板块：沟通与服务\n官方公告与向管理员提交请求。"
-    else:
-        text = (
-            "Раздел: Коммуникация и сервис\n"
-            "Официальные объявления и обращения в администрацию."
-        )
     await update.message.reply_text(
-        text,
-        reply_markup=_comms_keyboard(lang),
+        t(profile, "SECTION_COMMS"),
+        reply_markup=_comms_keyboard(_user_lang(profile)),
     )
 
 
@@ -1209,8 +1390,14 @@ async def lostfound_add_start(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     keyboard = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🔍 Потеряно", callback_data="lf_type_Потеряно")],
-            [InlineKeyboardButton("📦 Найдено", callback_data="lf_type_Найдено")],
+            InlineKeyboardButton(
+                t(profile,"LF_LOST"),
+                callback_data="lf_type_Потеряно"
+            ),
+            InlineKeyboardButton(
+                t(profile,"LF_FOUND"),
+                callback_data="lf_type_Найдено"
+            ),
         ]
     )
     await update.message.reply_text(t(profile, "LF_PUBLISH_PROMPT"), reply_markup=keyboard)
@@ -1344,7 +1531,9 @@ async def lostfound_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(t(profile, "NO_ACTIVE_LF"))
         return
 
-    await update.message.reply_text(f"Потеряшки в {profile.selected_dorm}:")
+    await update.message.reply_text(
+        t(profile, "LF_HEADER", dorm=profile.selected_dorm)
+    )
     for item in items[:15]:
         await _send_lostfound_item(update, item, show_actions=(item.author_id == update.effective_user.id))
 
@@ -1353,49 +1542,89 @@ async def _send_lostfound_item(update: Update, item: LostFoundItem, show_actions
     message = _reply_message(update)
     viewer_profile = _profile_for_update(update)
     viewer_lang = _user_lang(viewer_profile)
+
     created = item.created_at.strftime("%d.%m %H:%M")
-    title_txt = format_multilingual_for_user(item.title_ru, item.title_en, getattr(item, "title_zh", None), viewer_lang)
+
+    title_txt = format_multilingual_for_user(
+        item.title_ru,
+        item.title_en,
+        getattr(item, "title_zh", None),
+        viewer_lang,
+    )
+
     desc_txt = format_multilingual_for_user(
         item.description_ru,
         item.description_en,
         getattr(item, "description_zh", None),
         viewer_lang,
     )
+
     type_primary = item.item_type
     type_secondary = LF_TYPE_EN.get(item.item_type, item.item_type)
-    if viewer_lang == "en":
-        type_primary, type_secondary = type_secondary, item.item_type
-    item_type_txt = type_primary if type_secondary == type_primary else f"{type_primary} ({type_secondary})"
 
     if viewer_lang == "en":
-        contact_label, created_label = "Contact", "Added"
-    elif viewer_lang == "zh":
-        contact_label, created_label = "联系方式", "发布"
-    else:
-        contact_label, created_label = "Контакт", "Добавлено"
-    text = (
-        f"#{item.id} {item_type_txt} | {title_txt}\n"
-        f"{desc_txt}\n"
-        f"{contact_label}: {item.contact}\n"
-        f"{created_label}: {created}"
+        type_primary, type_secondary = type_secondary, item.item_type
+
+    item_type_txt = (
+        type_primary
+        if type_secondary == type_primary
+        else f"{type_primary} ({type_secondary})"
     )
+
+    text = t(
+        viewer_profile,
+        "LF_ITEM_TEXT",
+        id=item.id,
+        type=item_type_txt,
+        title=title_txt,
+        desc=desc_txt,
+        contact=item.contact,
+        created=created,
+    )
+
     markup = None
+
     if show_actions:
+
         markup = InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton("✅ Передано владельцу", callback_data=f"lf_done_{item.id}"),
-                    InlineKeyboardButton("🗑 Удалить", callback_data=f"lf_del_{item.id}"),
+                    InlineKeyboardButton(
+                        t(viewer_profile, "LF_DONE"),
+                        callback_data=f"lf_done_{item.id}",
+                    ),
+                    InlineKeyboardButton(
+                        t(viewer_profile, "DELETE"),
+                        callback_data=f"lf_del_{item.id}",
+                    ),
                 ]
             ]
         )
+
     if item.photo_file_id:
+
         if item.photo_type == "photo":
-            await message.reply_photo(item.photo_file_id, caption=text, reply_markup=markup)
+
+            await message.reply_photo(
+                item.photo_file_id,
+                caption=text,
+                reply_markup=markup,
+            )
+
         else:
-            await message.reply_document(item.photo_file_id, caption=text, reply_markup=markup)
+
+            await message.reply_document(
+                item.photo_file_id,
+                caption=text,
+                reply_markup=markup,
+            )
+
     else:
-        await message.reply_text(text, reply_markup=markup)
+
+        await message.reply_text(
+            text,
+            reply_markup=markup,
+        )
 
 
 async def lostfound_done_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1453,7 +1682,9 @@ async def my_ads(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(t(profile, "NO_MY_LISTINGS"))
         return
 
-    await update.message.reply_text(f"Ваши активные объявления в {profile.selected_dorm}:")
+    await update.message.reply_text(
+        t(profile, "MY_ACTIVE_LISTINGS", dorm=profile.selected_dorm)
+    )
     for listing in listings[:10]:
         await _send_listing(update, listing, with_actions=True)
 
@@ -1481,10 +1712,19 @@ async def list_type_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     query = update.callback_query
     await query.answer()
     listing_type = "Куплю" if query.data == "list_buy" else "Продам"
-    await _send_listings_by_type(update, listing_type)
+
+    profile = _profile_for_update(update)
+
+    listing_type_label = (
+        t(profile, "BUY")
+        if listing_type == "Куплю"
+        else t(profile, "SELL")
+    )
+
+    await _send_listings_by_type(update, listing_type, listing_type_label)
 
 
-async def _send_listings_by_type(update: Update, listing_type: str) -> None:
+async def _send_listings_by_type(update, listing_type, listing_type_label)-> None:
     profile = await _ensure_verified(update)
     if not profile:
         return
@@ -1502,10 +1742,15 @@ async def _send_listings_by_type(update: Update, listing_type: str) -> None:
         .order_by(Listing.created_at.desc())
     )
     if not listings.exists():
-        await _reply(update, t(profile, "SECTION_EMPTY", section=listing_type))
+        t(profile, "SECTION_EMPTY", section=listing_type_label)
         return
 
-    await _reply(update, t(profile, "SECTION_HEADER", section=listing_type, dorm=profile.selected_dorm))
+    t(
+        profile,
+        "SECTION_HEADER",
+        section=listing_type_label,
+        dorm=profile.selected_dorm,
+    )
     for listing in listings[:15]:
         await _send_listing(update, listing, with_actions=False)
 
@@ -1529,9 +1774,9 @@ async def zone_booking_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
     keyboard = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("Коворкинг", callback_data="zone_pick_coworking")],
-            [InlineKeyboardButton("Кухня", callback_data="zone_pick_kitchen")],
-            [InlineKeyboardButton("Репетиторская", callback_data="zone_pick_tutor")],
+            [InlineKeyboardButton(t(profile,"ZONE_COWORKING"), callback_data="zone_pick_coworking")],
+            [InlineKeyboardButton(t(profile,"ZONE_KITCHEN"), callback_data="zone_pick_kitchen")],
+            [InlineKeyboardButton(t(profile,"ZONE_TUTOR"), callback_data="zone_pick_tutor")],
         ]
     )
     await update.message.reply_text(t(profile, "CHOOSE_ZONE"), reply_markup=keyboard)
@@ -1600,28 +1845,44 @@ def _slots_for_day(dorm: str, zone_key: str, day: datetime) -> list[tuple[str, d
     return slots
 
 
-async def _show_zone_days(query_message, zone_key: str) -> None:
+async def _show_zone_days(query_message, zone_key: str, profile) -> None:
     zone_name = ZONE_MAP[zone_key]
     today, max_day = _booking_window_bounds()
 
-    keyboard_rows = []
-    day_buttons = []
-    for i in range(0, (max_day - today).days + 1):
+    keyboard_rows = []  # список списков кнопок
+    day_buttons = []    # текущая строка кнопок
+    for i in range((max_day - today).days + 1):
         current_day = today + timedelta(days=i)
-        # profile not available here; keep RU labels for buttons to avoid breaking callbacks.
-        label = "Сегодня" if i == 0 else ("Завтра" if i == 1 else current_day.strftime("%d.%m"))
+        if i == 0:
+            label = t(profile, "TODAY")
+        elif i == 1:
+            label = t(profile, "TOMORROW")
+        else:
+            label = current_day.strftime("%d.%m")
+
+        # создаём кнопку и добавляем в текущую строку
         day_buttons.append(
-            InlineKeyboardButton(label, callback_data=f"zone_day_{zone_key}_{current_day.strftime('%Y%m%d')}")
+            InlineKeyboardButton(
+                label,
+                callback_data=f"zone_day_{zone_key}_{current_day.strftime('%Y%m%d')}"
+            )
         )
+
+        # каждые 3 кнопки формируем новую строку
         if len(day_buttons) == 3:
             keyboard_rows.append(day_buttons)
             day_buttons = []
+
+    # оставшиеся кнопки (если их меньше 3)
     if day_buttons:
         keyboard_rows.append(day_buttons)
 
+    # ОБЯЗАТЕЛЬНО передаём список списков кнопок
+    reply_markup = InlineKeyboardMarkup(keyboard_rows)
+
     await query_message.reply_text(
         t(None, "ZONE_PICK_DATE", zone=zone_name),
-        reply_markup=InlineKeyboardMarkup(keyboard_rows),
+        reply_markup=reply_markup,
     )
 
 
@@ -1661,7 +1922,7 @@ async def zone_booking_zone_selected(update: Update, context: ContextTypes.DEFAU
         await query.message.reply_text(t(profile, "UNKNOWN_ZONE"))
         return ConversationHandler.END
 
-    await _show_zone_days(query.message, zone_key)
+    await _show_zone_days(query.message, zone_key, profile)
     return BOOK_ZONE_SLOT
 
 
@@ -1759,9 +2020,14 @@ async def my_bookings(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [[InlineKeyboardButton(t(profile, "CANCEL_BOOKING_BTN"), callback_data=f"book_cancel_{b.id}")]]
             )
         await update.message.reply_text(
-            f"#{b.id} {b.zone_name}\n"
-            f"Время: {b.slot_text}\n"
-            f"Статус: {b.status}",
+            t(
+                profile,
+                "BOOKING_ROW",
+                id=b.id,
+                zone=b.zone_name,
+                time=b.slot_text,
+                status=b.status,
+            ),
             reply_markup=markup,
         )
 
@@ -1806,7 +2072,11 @@ async def laundry_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(t(profile, "LAUNDRY_HEADER", dorm=profile.selected_dorm))
     for row in rows:
-        await update.message.reply_text(f"{row.machine_name}: {row.status}")
+        await update.message.reply_text(
+            t(profile,"LAUNDRY_ROW",
+            name=row.machine_name,
+            status=row.status)
+        )
 
 
 async def announcements_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1827,7 +2097,12 @@ async def announcements_list(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(t(profile, "OFFICIAL_ANN_HEADER", dorm=profile.selected_dorm))
     for row in rows[:15]:
         created = row.created_at.strftime("%d.%m %H:%M")
-        await update.message.reply_text(f"[{created}] {row.title}\n{row.text}")
+        await update.message.reply_text(
+            t(profile,"ANN_ROW",
+            date=created,
+            title=row.title,
+            text=row.text)
+        )
 
 
 async def announcement_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1934,7 +2209,7 @@ async def ticket_photo_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data.pop("ticket_theme", None)
     context.user_data.pop("ticket_description", None)
     await message.reply_text(
-        f"Обращение #{ticket.id} зарегистрировано ✅",
+        t(profile, "TICKET_CREATED", id=ticket.id),
         reply_markup=_comms_keyboard(_user_lang(profile)),
     )
     return ConversationHandler.END
@@ -1961,9 +2236,14 @@ async def my_tickets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(t(profile, "MY_TICKETS_HEADER", dorm=profile.selected_dorm))
     for row in rows[:15]:
         await update.message.reply_text(
-            f"#{row.id} | {row.theme}\n"
-            f"{row.description}\n"
-            f"Статус: {row.status}"
+            t(
+                profile,
+                "TICKET_ROW",
+                id=row.id,
+                theme=row.theme,
+                desc=row.description,
+                status=row.status,
+            )
         )
 
 
@@ -2020,6 +2300,7 @@ async def delete_listing(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def _mark_listing_sold_by_id(update: Update, listing_id: int) -> None:
     profile = _profile_for_update(update)
+
     try:
         listing = Listing.get(
             Listing.id == listing_id,
@@ -2032,11 +2313,20 @@ async def _mark_listing_sold_by_id(update: Update, listing_id: int) -> None:
         return
 
     is_buy_request = listing.type.strip().lower() == "куплю"
+
     listing.status = "куплено" if is_buy_request else "продано"
     listing.save()
-    done_text = "купленным" if is_buy_request else "проданным"
-    await _reply(update, t(profile, "LISTING_MARKED", id=listing_id, status=done_text))
 
+    done_text = (
+        t(profile, "BOUGHT_DONE")
+        if is_buy_request
+        else t(profile, "SOLD_DONE")
+    )
+
+    await _reply(
+        update,
+        t(profile, "LISTING_MARKED", id=listing_id, status=done_text),
+    )
 
 async def buy_listing(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await _ensure_verified(update)
@@ -2069,21 +2359,19 @@ async def delete_listing_callback(update: Update, context: ContextTypes.DEFAULT_
 
 async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = _profile_for_update(update)
-    dorm_text = profile.selected_dorm if profile.selected_dorm else "не выбрано"
-    text = (
-        f"Текущее общежитие: {dorm_text}\n\n"
-        "DormLink — сервис для жизни в общежитии.\n\n"
-        "Разделы меню:\n"
-        "1) 🛍 Внутренний маркетплейс: купля/продажа + потеряшки\n"
-        "2) 🏢 Управление пространством: бронь зон + статус стиралок\n"
-        "3) 💬 Коммуникация и сервис: объявления организации + обращения\n\n"
-        "Ключевые команды:\n"
-        "/start /verify /change /info\n"
-        "/add /list /my /delete <id> /buy <id>\n"
-        "/lostfound_add /lostfound_list\n"
-        "/book_zone /my_bookings /laundry\n"
-        "/announcements /ticket_new /my_tickets"
+
+    dorm_text = (
+        profile.selected_dorm
+        if profile.selected_dorm
+        else t(profile, "NOT_SELECTED")
     )
+
+    text = t(
+        profile,
+        "INFO_TEXT",
+        dorm=dorm_text,
+    )
+
     await update.message.reply_text(text)
 
 
