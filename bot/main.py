@@ -57,6 +57,7 @@ from handlers import (
     add_start,
     announcement_create,
     buy_listing,
+    booking_cancel_callback,
     cancel,
     category_selected,
     change_dorm,
@@ -95,9 +96,9 @@ from handlers import (
     verify_email_input,
     verify_start,
     verify_start_callback,
-    zone_booking_name_input,
-    zone_booking_slot_input,
+    zone_booking_slot_or_day_selected,
     zone_booking_start,
+    zone_booking_zone_selected,
     announcements_list,
 )
 
@@ -121,6 +122,27 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TOKEN:
     raise ValueError("TELEGRAM_TOKEN не найден в .env!")
 
+
+def _ensure_zonebooking_columns() -> None:
+    """Backfill new ZoneBooking columns in existing sqlite DB."""
+    try:
+        rows = db.execute_sql("PRAGMA table_info(zonebooking);").fetchall()
+        existing = {row[1] for row in rows}
+    except Exception:
+        existing = set()
+
+    if "start_at" not in existing:
+        try:
+            db.execute_sql("ALTER TABLE zonebooking ADD COLUMN start_at DATETIME;")
+        except Exception:
+            pass
+    if "end_at" not in existing:
+        try:
+            db.execute_sql("ALTER TABLE zonebooking ADD COLUMN end_at DATETIME;")
+        except Exception:
+            pass
+
+
 def main():
     if isinstance(db, PostgresqlDatabase):
         print("Подключение к PostgreSQL на Render")
@@ -140,6 +162,7 @@ def main():
         ],
         safe=True,
     )
+    _ensure_zonebooking_columns()
     print("База данных готова")
 
     app = ApplicationBuilder().token(TOKEN).build()
@@ -207,8 +230,8 @@ def main():
             MessageHandler(filters.Regex(f"^{BTN_BOOK_ZONE}$"), zone_booking_start),
         ],
         states={
-            BOOK_ZONE_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, zone_booking_name_input)],
-            BOOK_ZONE_SLOT: [MessageHandler(filters.TEXT & ~filters.COMMAND, zone_booking_slot_input)],
+            BOOK_ZONE_NAME: [CallbackQueryHandler(zone_booking_zone_selected, pattern="^zone_pick_")],
+            BOOK_ZONE_SLOT: [CallbackQueryHandler(zone_booking_slot_or_day_selected, pattern="^zone_(day|slot|noslot|back)_")],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
         allow_reentry=True,
@@ -244,6 +267,7 @@ def main():
     app.add_handler(CallbackQueryHandler(list_type_callback, pattern="^list_(buy|sell)$"))
     app.add_handler(CallbackQueryHandler(lostfound_done_callback, pattern="^lf_done_\\d+$"))
     app.add_handler(CallbackQueryHandler(lostfound_delete_callback, pattern="^lf_del_\\d+$"))
+    app.add_handler(CallbackQueryHandler(booking_cancel_callback, pattern="^book_cancel_\\d+$"))
     app.add_handler(CallbackQueryHandler(mark_listing_callback, pattern="^mark_\\d+$"))
     app.add_handler(CallbackQueryHandler(delete_listing_callback, pattern="^del_\\d+$"))
     app.add_handler(CommandHandler("change", change_dorm))

@@ -50,6 +50,12 @@ BTN_TICKET_NEW = "📝 Обращение в администрацию"
 BTN_TICKET_MY = "🔎 Мои обращения"
 BTN_INFO = "ℹ️ Помощь"
 
+ZONE_MAP = {
+    "coworking": "Коворкинг",
+    "kitchen": "Кухня",
+    "tutor": "Репетиторская",
+}
+
 HSE_EMAIL_PATTERN = re.compile(r"^[A-Za-z0-9._%+-]+@edu\.hse\.ru$", re.IGNORECASE)
 
 DORMS = [
@@ -176,6 +182,17 @@ async def _ensure_verified(update: Update) -> UserProfile | None:
         reply_markup=keyboard,
     )
     return None
+
+
+async def _ensure_dorm_selected(update: Update, profile: UserProfile) -> bool:
+    if profile.selected_dorm:
+        return True
+    await _reply(
+        update,
+        "Сначала выберите номер общежития, чтобы продолжить работу.",
+        reply_markup=_dorm_keyboard(),
+    )
+    return False
 
 
 def _smtp_send_verification(email: str, code: str) -> tuple[bool, str]:
@@ -309,6 +326,8 @@ async def open_marketplace(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await _ensure_verified(update)
     if not profile:
         return
+    if not await _ensure_dorm_selected(update, profile):
+        return
     await update.message.reply_text(
         "Раздел: Внутренний маркетплейс\n"
         "Здесь доступны купля/продажа и потеряшки.",
@@ -320,6 +339,8 @@ async def open_space(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await _ensure_verified(update)
     if not profile:
         return
+    if not await _ensure_dorm_selected(update, profile):
+        return
     await update.message.reply_text(
         "Раздел: Управление пространством\n"
         "Здесь можно бронировать общие зоны и смотреть статус стиралок.",
@@ -330,6 +351,8 @@ async def open_space(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def open_comms(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await _ensure_verified(update)
     if not profile:
+        return
+    if not await _ensure_dorm_selected(update, profile):
         return
     await update.message.reply_text(
         "Раздел: Коммуникация и сервис\n"
@@ -877,37 +900,216 @@ async def zone_booking_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     profile = await _ensure_verified(update)
     if not profile:
         return ConversationHandler.END
-    await update.message.reply_text(
-        "Введите общую зону (например: Коворкинг / Кухня / Репетиторская):"
+    if not profile.selected_dorm:
+        await update.message.reply_text("Сначала выберите общежитие.")
+        return ConversationHandler.END
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("Коворкинг", callback_data="zone_pick_coworking")],
+            [InlineKeyboardButton("Кухня", callback_data="zone_pick_kitchen")],
+            [InlineKeyboardButton("Репетиторская", callback_data="zone_pick_tutor")],
+        ]
     )
+    await update.message.reply_text("Выберите общую зону для брони:", reply_markup=keyboard)
     return BOOK_ZONE_NAME
 
 
-async def zone_booking_name_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    zone_name = update.message.text.strip()
-    if not zone_name:
-        await update.message.reply_text("Название зоны пустое. Введите еще раз:")
-        return BOOK_ZONE_NAME
-    context.user_data["zone_name"] = zone_name
-    await update.message.reply_text("Введите время в свободном формате (например: 18.03 19:00-20:00):")
+def _zone_hours(zone_key: str) -> tuple[int, int]:
+    if zone_key == "kitchen":
+        return (0, 24)
+    return (8, 23)
+
+
+def _zone_slot_params(zone_key: str) -> tuple[int, int]:
+    if zone_key == "kitchen":
+        return (2, 2)  # duration_hours, step_hours
+    return (1, 1)
+
+
+def _booking_window_bounds() -> tuple[datetime, datetime]:
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    max_day = today + timedelta(days=7)
+    return today, max_day
+
+
+def _is_day_within_booking_window(day: datetime) -> bool:
+    min_day, max_day = _booking_window_bounds()
+    return min_day <= day <= max_day
+
+
+def _slot_datetime(day: datetime, hour: int, duration_hours: int = 1) -> tuple[datetime, datetime]:
+    start_at = day.replace(hour=hour, minute=0, second=0, microsecond=0)
+    end_at = start_at + timedelta(hours=duration_hours)
+    return start_at, end_at
+
+
+def _is_slot_busy(dorm: str, zone_name: str, start_at: datetime, end_at: datetime) -> bool:
+    query = (
+        ZoneBooking.select()
+        .where(
+            ZoneBooking.dorm == dorm,
+            ZoneBooking.zone_name == zone_name,
+            ZoneBooking.status.in_(["ожидает подтверждения", "подтверждено"]),
+            ZoneBooking.start_at.is_null(False),
+            ZoneBooking.end_at.is_null(False),
+            ZoneBooking.start_at < end_at,
+            ZoneBooking.end_at > start_at,
+        )
+    )
+    return query.exists()
+
+
+def _slots_for_day(dorm: str, zone_key: str, day: datetime) -> list[tuple[str, datetime, datetime]]:
+    zone_name = ZONE_MAP[zone_key]
+    hour_from, hour_to = _zone_hours(zone_key)
+    duration_hours, step_hours = _zone_slot_params(zone_key)
+    now = datetime.now()
+    slots = []
+    last_start = hour_to - duration_hours
+    for hour in range(hour_from, last_start + 1, step_hours):
+        start_at, end_at = _slot_datetime(day, hour, duration_hours)
+        if start_at <= now:
+            continue
+        if not _is_slot_busy(dorm, zone_name, start_at, end_at):
+            label = f"{start_at.strftime('%d.%m')} {start_at.strftime('%H:%M')}-{end_at.strftime('%H:%M')}"
+            slots.append((label, start_at, end_at))
+    return slots
+
+
+async def _show_zone_days(query_message, zone_key: str) -> None:
+    zone_name = ZONE_MAP[zone_key]
+    today, max_day = _booking_window_bounds()
+
+    keyboard_rows = []
+    day_buttons = []
+    for i in range(0, (max_day - today).days + 1):
+        current_day = today + timedelta(days=i)
+        label = "Сегодня" if i == 0 else ("Завтра" if i == 1 else current_day.strftime("%d.%m"))
+        day_buttons.append(
+            InlineKeyboardButton(label, callback_data=f"zone_day_{zone_key}_{current_day.strftime('%Y%m%d')}")
+        )
+        if len(day_buttons) == 3:
+            keyboard_rows.append(day_buttons)
+            day_buttons = []
+    if day_buttons:
+        keyboard_rows.append(day_buttons)
+
+    await query_message.reply_text(
+        f"Зона: {zone_name}\nВыберите дату бронирования:",
+        reply_markup=InlineKeyboardMarkup(keyboard_rows),
+    )
+
+
+async def _show_zone_slots(query_message, profile: UserProfile, zone_key: str, day: datetime) -> None:
+    zone_name = ZONE_MAP[zone_key]
+    date_key = day.strftime("%Y%m%d")
+    if not _is_day_within_booking_window(day):
+        await query_message.reply_text("Бронь доступна только максимум на неделю вперед.")
+        return
+
+    keyboard_rows = []
+    free_slots = _slots_for_day(profile.selected_dorm, zone_key, day)
+    for label, start_at, _ in free_slots[:20]:
+        callback = f"zone_slot_{zone_key}_{date_key}_{start_at.hour:02d}"
+        keyboard_rows.append([InlineKeyboardButton(label, callback_data=callback)])
+
+    if not free_slots:
+        keyboard_rows.append([InlineKeyboardButton("Нет свободных слотов на этот день", callback_data="zone_noslot")])
+    keyboard_rows.append([InlineKeyboardButton("⬅️ Назад к выбору даты", callback_data=f"zone_back_{zone_key}")])
+
+    text = (
+        f"Зона: {zone_name}\n"
+        f"Дата: {day.strftime('%d.%m.%Y')}\n"
+        "Выберите свободный слот:"
+    )
+    await query_message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard_rows))
+
+
+async def zone_booking_zone_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    profile = await _ensure_verified(update)
+    if not profile:
+        return ConversationHandler.END
+    if not profile.selected_dorm:
+        await query.message.reply_text("Сначала выберите общежитие.")
+        return ConversationHandler.END
+
+    zone_key = query.data.replace("zone_pick_", "")
+    if zone_key not in ZONE_MAP:
+        await query.message.reply_text("Неизвестная зона.")
+        return ConversationHandler.END
+
+    await _show_zone_days(query.message, zone_key)
     return BOOK_ZONE_SLOT
 
 
-async def zone_booking_slot_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    slot_text = update.message.text.strip()
-    if not slot_text:
-        await update.message.reply_text("Время не может быть пустым. Введите еще раз:")
+async def zone_booking_slot_or_day_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    profile = await _ensure_verified(update)
+    if not profile:
+        return ConversationHandler.END
+    if not profile.selected_dorm:
+        await query.message.reply_text("Сначала выберите общежитие.")
+        return ConversationHandler.END
+
+    if query.data == "zone_noslot":
         return BOOK_ZONE_SLOT
-    profile = _profile_for_update(update)
-    ZoneBooking.create(
-        user_id=update.effective_user.id,
-        dorm=profile.selected_dorm or "не указано",
-        zone_name=context.user_data["zone_name"],
-        slot_text=slot_text,
-    )
-    context.user_data.pop("zone_name", None)
-    await update.message.reply_text("Заявка на бронирование создана ✅", reply_markup=_space_keyboard())
-    return ConversationHandler.END
+
+    if query.data.startswith("zone_back_"):
+        _, _, zone_key = query.data.split("_", 2)
+        if zone_key not in ZONE_MAP:
+            await query.message.reply_text("Неизвестная зона.")
+            return BOOK_ZONE_SLOT
+        await _show_zone_days(query.message, zone_key)
+        return BOOK_ZONE_SLOT
+
+    if query.data.startswith("zone_day_"):
+        # zone_day_<zone_key>_<yyyymmdd>
+        _, _, zone_key, day_key = query.data.split("_", 3)
+        day = datetime.strptime(day_key, "%Y%m%d")
+        if not _is_day_within_booking_window(day):
+            await query.message.reply_text("Бронь может быть только максимум на неделю вперед.")
+            return BOOK_ZONE_SLOT
+        await _show_zone_slots(query.message, profile, zone_key, day)
+        return BOOK_ZONE_SLOT
+
+    if query.data.startswith("zone_slot_"):
+        # zone_slot_<zone_key>_<yyyymmdd>_<hour>
+        _, _, zone_key, day_key, hour_txt = query.data.split("_", 4)
+        day = datetime.strptime(day_key, "%Y%m%d")
+        if not _is_day_within_booking_window(day):
+            await query.message.reply_text("Бронь может быть только максимум на неделю вперед.")
+            return BOOK_ZONE_SLOT
+        duration_hours, _ = _zone_slot_params(zone_key)
+        start_at, end_at = _slot_datetime(day, int(hour_txt), duration_hours)
+        zone_name = ZONE_MAP.get(zone_key)
+        if not zone_name:
+            await query.message.reply_text("Неизвестная зона.")
+            return BOOK_ZONE_SLOT
+
+        if _is_slot_busy(profile.selected_dorm, zone_name, start_at, end_at):
+            await query.message.reply_text("Этот слот уже занят. Выберите другой слот.")
+            await _show_zone_slots(query.message, profile, zone_key, day)
+            return BOOK_ZONE_SLOT
+
+        slot_text = f"{start_at.strftime('%d.%m %H:%M')}-{end_at.strftime('%H:%M')}"
+        ZoneBooking.create(
+            user_id=update.effective_user.id,
+            dorm=profile.selected_dorm,
+            zone_name=zone_name,
+            slot_text=slot_text,
+            start_at=start_at,
+            end_at=end_at,
+        )
+        await query.message.reply_text(
+            f"Заявка на бронирование создана ✅\n{zone_name}: {slot_text}",
+            reply_markup=_space_keyboard(),
+        )
+        return ConversationHandler.END
+
+    return BOOK_ZONE_SLOT
 
 
 async def my_bookings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -924,11 +1126,40 @@ async def my_bookings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text("Ваши бронирования:")
     for b in bookings[:10]:
+        markup = None
+        if b.status in {"ожидает подтверждения", "подтверждено"}:
+            markup = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("❌ Отменить бронь", callback_data=f"book_cancel_{b.id}")]]
+            )
         await update.message.reply_text(
             f"#{b.id} {b.zone_name}\n"
             f"Время: {b.slot_text}\n"
-            f"Статус: {b.status}"
+            f"Статус: {b.status}",
+            reply_markup=markup,
         )
+
+
+async def booking_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    booking_id = int(query.data.replace("book_cancel_", ""))
+    try:
+        booking = ZoneBooking.get(
+            ZoneBooking.id == booking_id,
+            ZoneBooking.user_id == update.effective_user.id,
+        )
+    except ZoneBooking.DoesNotExist:
+        await query.message.reply_text("Бронь не найдена или уже недоступна.")
+        return
+
+    if booking.status not in {"ожидает подтверждения", "подтверждено"}:
+        await query.message.reply_text("Эту бронь уже нельзя отменить.")
+        return
+
+    booking.status = "отменено"
+    booking.save()
+    await query.message.reply_text(f"Бронь #{booking_id} отменена. Слот снова доступен для других ✅")
 
 
 async def laundry_status(update: Update, context: ContextTypes.DEFAULT_TYPE):

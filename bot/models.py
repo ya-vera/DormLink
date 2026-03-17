@@ -65,6 +65,8 @@ class ZoneBooking(BaseModel):
     dorm = CharField()
     zone_name = CharField()
     slot_text = CharField()
+    start_at = DateTimeField(null=True)
+    end_at = DateTimeField(null=True)
     status = CharField(default="ожидает подтверждения")
     created_at = DateTimeField(constraints=[SQL("DEFAULT CURRENT_TIMESTAMP")])
 
