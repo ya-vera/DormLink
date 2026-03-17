@@ -1192,15 +1192,18 @@ async def announcements_list(update: Update, context: ContextTypes.DEFAULT_TYPE)
     profile = await _ensure_verified(update)
     if not profile:
         return
+    if not profile.selected_dorm:
+        await update.message.reply_text("Сначала выберите общежитие.")
+        return
     rows = (
         OfficialAnnouncement.select()
-        .where((OfficialAnnouncement.dorm == "all") | (OfficialAnnouncement.dorm == (profile.selected_dorm or "")))
+        .where(OfficialAnnouncement.dorm == profile.selected_dorm)
         .order_by(OfficialAnnouncement.created_at.desc())
     )
     if not rows.exists():
         await update.message.reply_text("Пока нет официальных объявлений.")
         return
-    await update.message.reply_text("Официальные объявления:")
+    await update.message.reply_text(f"Официальные объявления ({profile.selected_dorm}):")
     for row in rows[:15]:
         created = row.created_at.strftime("%d.%m %H:%M")
         await update.message.reply_text(f"[{created}] {row.title}\n{row.text}")
@@ -1209,6 +1212,10 @@ async def announcements_list(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def announcement_create(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in _admin_ids():
         await update.message.reply_text("Команда доступна только администраторам.")
+        return
+    profile = _profile_for_update(update)
+    if not profile.selected_dorm:
+        await update.message.reply_text("Сначала выберите общежитие.")
         return
     if not context.args:
         await update.message.reply_text("Формат: /announce Заголовок | Текст объявления")
@@ -1219,17 +1226,20 @@ async def announcement_create(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     title, text = [part.strip() for part in raw.split("|", 1)]
     OfficialAnnouncement.create(
-        dorm="all",
+        dorm=profile.selected_dorm,
         title=title,
         text=text,
         created_by=update.effective_user.id,
     )
-    await update.message.reply_text("Официальное объявление опубликовано ✅")
+    await update.message.reply_text(f"Официальное объявление для {profile.selected_dorm} опубликовано ✅")
 
 
 async def ticket_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await _ensure_verified(update)
     if not profile:
+        return ConversationHandler.END
+    if not profile.selected_dorm:
+        await update.message.reply_text("Сначала выберите общежитие.")
         return ConversationHandler.END
     await update.message.reply_text("Укажите тему обращения (например: Шум/Интернет/Сантехника):")
     return TICKET_THEME
@@ -1258,6 +1268,12 @@ async def ticket_description_input(update: Update, context: ContextTypes.DEFAULT
 
 async def ticket_photo_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = _profile_for_update(update)
+    if not profile.selected_dorm:
+        message = _reply_message(update)
+        await message.reply_text("Сначала выберите общежитие.")
+        context.user_data.pop("ticket_theme", None)
+        context.user_data.pop("ticket_description", None)
+        return ConversationHandler.END
     photo_file_id = None
     photo_type = None
     message = _reply_message(update)
@@ -1287,7 +1303,7 @@ async def ticket_photo_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     ticket = SupportTicket.create(
         user_id=update.effective_user.id,
-        dorm=profile.selected_dorm or "не указано",
+        dorm=profile.selected_dorm,
         theme=context.user_data["ticket_theme"],
         description=context.user_data["ticket_description"],
         photo_file_id=photo_file_id,
@@ -1303,15 +1319,21 @@ async def my_tickets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = await _ensure_verified(update)
     if not profile:
         return
+    if not profile.selected_dorm:
+        await update.message.reply_text("Сначала выберите общежитие.")
+        return
     rows = (
         SupportTicket.select()
-        .where(SupportTicket.user_id == update.effective_user.id)
+        .where(
+            (SupportTicket.user_id == update.effective_user.id)
+            & (SupportTicket.dorm == profile.selected_dorm)
+        )
         .order_by(SupportTicket.created_at.desc())
     )
     if not rows.exists():
-        await update.message.reply_text("У вас пока нет обращений.")
+        await update.message.reply_text(f"У вас пока нет обращений для {profile.selected_dorm}.")
         return
-    await update.message.reply_text("Ваши обращения:")
+    await update.message.reply_text(f"Ваши обращения ({profile.selected_dorm}):")
     for row in rows[:15]:
         await update.message.reply_text(
             f"#{row.id} | {row.theme}\n"
