@@ -1,0 +1,285 @@
+# bot/main.py
+
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+from peewee import PostgresqlDatabase
+
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
+
+from handlers import (
+    AUTH_CODE,
+    AUTH_EMAIL,
+    BTN_ADD,
+    BTN_CHANGE_DORM,
+    BTN_INFO,
+    BTN_LIST,
+    BTN_LOSTFOUND_ADD,
+    BTN_LOSTFOUND_LIST,
+    BTN_MARKETPLACE,
+    BTN_MENU,
+    BTN_MY,
+    BTN_SPACE,
+    BTN_START,
+    BTN_TICKET_MY,
+    BTN_TICKET_NEW,
+    BTN_VERIFY,
+    BTN_ANNOUNCEMENTS,
+    BTN_BOOK_ZONE,
+    BTN_LAUNDRY,
+    BTN_MY_BOOKINGS,
+    BTN_COMMS,
+    CATEGORY,
+    CONTACT,
+    DESCRIPTION,
+    BOOK_ZONE_NAME,
+    BOOK_ZONE_SLOT,
+    LF_CONTACT,
+    LF_DESCRIPTION,
+    LF_PHOTO,
+    LF_TITLE,
+    LF_TYPE,
+    PHOTO,
+    TICKET_DESCRIPTION,
+    TICKET_PHOTO,
+    TICKET_THEME,
+    TYPE,
+    add_contact,
+    add_description,
+    add_photo,
+    add_start,
+    announcement_create,
+    buy_listing,
+    cancel,
+    category_selected,
+    change_dorm,
+    delete_listing,
+    delete_listing_callback,
+    dorm_chosen,
+    info_command,
+    laundry_status,
+    lostfound_add_start,
+    lostfound_contact_input,
+    lostfound_delete_callback,
+    lostfound_description_input,
+    lostfound_done_callback,
+    lostfound_list,
+    lostfound_photo_input,
+    lostfound_title_input,
+    lostfound_type_selected,
+    list_listings,
+    list_type_callback,
+    mark_listing_callback,
+    my_bookings,
+    my_ads,
+    my_tickets,
+    open_comms,
+    open_marketplace,
+    open_space,
+    show_menu,
+    start,
+    ticket_description_input,
+    ticket_photo_input,
+    ticket_start,
+    ticket_status_update,
+    ticket_theme_input,
+    type_selected,
+    verify_code_input,
+    verify_email_input,
+    verify_start,
+    verify_start_callback,
+    zone_booking_name_input,
+    zone_booking_slot_input,
+    zone_booking_start,
+    announcements_list,
+)
+
+from models import (
+    LaundryStatus,
+    Listing,
+    LostFoundItem,
+    OfficialAnnouncement,
+    SupportTicket,
+    UserProfile,
+    ZoneBooking,
+    db,
+)
+
+ROOT_ENV = Path(__file__).resolve().parents[1] / ".env"
+BOT_ENV = Path(__file__).resolve().parent / ".env"
+load_dotenv(ROOT_ENV)
+load_dotenv(BOT_ENV, override=False)
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+
+if not TOKEN:
+    raise ValueError("TELEGRAM_TOKEN не найден в .env!")
+
+def main():
+    if isinstance(db, PostgresqlDatabase):
+        print("Подключение к PostgreSQL на Render")
+    else:
+        print("Локальная SQLite (для теста)")
+
+    db.connect()
+    db.create_tables(
+        [
+            Listing,
+            UserProfile,
+            LostFoundItem,
+            ZoneBooking,
+            LaundryStatus,
+            OfficialAnnouncement,
+            SupportTicket,
+        ],
+        safe=True,
+    )
+    print("База данных готова")
+
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    auth_conv = ConversationHandler(
+        entry_points=[
+            CommandHandler("verify", verify_start),
+            MessageHandler(filters.Regex(f"^{BTN_VERIFY}$"), verify_start),
+            CallbackQueryHandler(verify_start_callback, pattern="^verify_start$"),
+        ],
+        states={
+            AUTH_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, verify_email_input)],
+            AUTH_CODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, verify_code_input)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        allow_reentry=True,
+    )
+
+    conv = ConversationHandler(
+        entry_points=[
+            CommandHandler("add", add_start),
+            MessageHandler(filters.Regex(f"^{BTN_ADD}$"), add_start),
+        ],
+        states={
+            TYPE: [CallbackQueryHandler(type_selected, pattern="^type_")],
+            CATEGORY: [CallbackQueryHandler(category_selected, pattern="^cat_")],
+            DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_description)],
+            CONTACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_contact)],
+            PHOTO: [
+                MessageHandler(filters.PHOTO, add_photo),
+                MessageHandler(filters.Document.ALL, add_photo),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_photo),
+                CallbackQueryHandler(add_photo, pattern="^skip_photo$"),
+            ],
+
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        allow_reentry=True,
+    )
+
+    lostfound_conv = ConversationHandler(
+        entry_points=[
+            CommandHandler("lostfound_add", lostfound_add_start),
+            MessageHandler(filters.Regex(f"^{BTN_LOSTFOUND_ADD}$"), lostfound_add_start),
+        ],
+        states={
+            LF_TYPE: [CallbackQueryHandler(lostfound_type_selected, pattern="^lf_type_")],
+            LF_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, lostfound_title_input)],
+            LF_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, lostfound_description_input)],
+            LF_CONTACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, lostfound_contact_input)],
+            LF_PHOTO: [
+                MessageHandler(filters.PHOTO, lostfound_photo_input),
+                MessageHandler(filters.Document.ALL, lostfound_photo_input),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, lostfound_photo_input),
+                CallbackQueryHandler(lostfound_photo_input, pattern="^lf_skip_photo$"),
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        allow_reentry=True,
+    )
+
+    booking_conv = ConversationHandler(
+        entry_points=[
+            CommandHandler("book_zone", zone_booking_start),
+            MessageHandler(filters.Regex(f"^{BTN_BOOK_ZONE}$"), zone_booking_start),
+        ],
+        states={
+            BOOK_ZONE_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, zone_booking_name_input)],
+            BOOK_ZONE_SLOT: [MessageHandler(filters.TEXT & ~filters.COMMAND, zone_booking_slot_input)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        allow_reentry=True,
+    )
+
+    ticket_conv = ConversationHandler(
+        entry_points=[
+            CommandHandler("ticket_new", ticket_start),
+            MessageHandler(filters.Regex(f"^{BTN_TICKET_NEW}$"), ticket_start),
+        ],
+        states={
+            TICKET_THEME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ticket_theme_input)],
+            TICKET_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, ticket_description_input)],
+            TICKET_PHOTO: [
+                MessageHandler(filters.PHOTO, ticket_photo_input),
+                MessageHandler(filters.Document.ALL, ticket_photo_input),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ticket_photo_input),
+                CallbackQueryHandler(ticket_photo_input, pattern="^ticket_skip_photo$"),
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        allow_reentry=True,
+    )
+
+    app.add_handler(auth_conv)
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_START}$"), start))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_MENU}$"), show_menu))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_MARKETPLACE}$"), open_marketplace))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_SPACE}$"), open_space))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_COMMS}$"), open_comms))
+    app.add_handler(CallbackQueryHandler(dorm_chosen, pattern="^dorm_"))
+    app.add_handler(CallbackQueryHandler(list_type_callback, pattern="^list_(buy|sell)$"))
+    app.add_handler(CallbackQueryHandler(lostfound_done_callback, pattern="^lf_done_\\d+$"))
+    app.add_handler(CallbackQueryHandler(lostfound_delete_callback, pattern="^lf_del_\\d+$"))
+    app.add_handler(CallbackQueryHandler(mark_listing_callback, pattern="^mark_\\d+$"))
+    app.add_handler(CallbackQueryHandler(delete_listing_callback, pattern="^del_\\d+$"))
+    app.add_handler(CommandHandler("change", change_dorm))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_CHANGE_DORM}$"), change_dorm))
+
+
+    app.add_handler(conv)
+    app.add_handler(lostfound_conv)
+    app.add_handler(booking_conv)
+    app.add_handler(ticket_conv)
+
+    app.add_handler(CommandHandler("list", list_listings))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_LIST}$"), list_listings))
+    app.add_handler(CommandHandler("my", my_ads))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_MY}$"), my_ads))
+    app.add_handler(CommandHandler("lostfound_list", lostfound_list))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_LOSTFOUND_LIST}$"), lostfound_list))
+    app.add_handler(CommandHandler("my_bookings", my_bookings))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_MY_BOOKINGS}$"), my_bookings))
+    app.add_handler(CommandHandler("laundry", laundry_status))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_LAUNDRY}$"), laundry_status))
+    app.add_handler(CommandHandler("announcements", announcements_list))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_ANNOUNCEMENTS}$"), announcements_list))
+    app.add_handler(CommandHandler("my_tickets", my_tickets))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_TICKET_MY}$"), my_tickets))
+    app.add_handler(CommandHandler("announce", announcement_create))
+    app.add_handler(CommandHandler("ticket_status", ticket_status_update))
+    app.add_handler(CommandHandler("delete", delete_listing))
+    app.add_handler(CommandHandler("buy", buy_listing))
+    app.add_handler(CommandHandler("info", info_command))
+    app.add_handler(CommandHandler("help", info_command))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_INFO}$"), info_command))
+
+    print("Бот запущен. Ctrl+C — остановка")
+    app.run_polling(allowed_updates=["message", "callback_query"], drop_pending_updates=True)
+
+
+if __name__ == "__main__":
+    main()
