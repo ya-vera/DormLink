@@ -2056,3 +2056,11 @@ async def language_set_callback(update: Update, context: ContextTypes.DEFAULT_TY
     profile.preferred_language = lang
     profile.save()
     await query.edit_message_text(t(profile, "LANG_UPDATED"))
+
+    # Force immediate ReplyKeyboard refresh: Telegram updates reply keyboards
+    # only when a new message is sent with reply_markup.
+    new_lang = _user_lang(profile)
+    await query.message.reply_text(
+        t(profile, "MAIN_MENU_TEXT") if _is_verified(profile) else t(profile, "NEED_VERIFY_FIRST"),
+        reply_markup=_menu_keyboard(_is_verified(profile), new_lang),
+    )
