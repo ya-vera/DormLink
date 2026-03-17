@@ -17,26 +17,7 @@ from telegram.ext import (
 from handlers import (
     AUTH_CODE,
     AUTH_EMAIL,
-    BTN_ADD,
-    BTN_CHANGE_DORM,
-    BTN_INFO,
-    BTN_LANG,
-    BTN_LIST,
-    BTN_LOSTFOUND_ADD,
-    BTN_LOSTFOUND_LIST,
-    BTN_MARKETPLACE,
-    BTN_MENU,
-    BTN_MY,
-    BTN_SPACE,
-    BTN_START,
-    BTN_TICKET_MY,
-    BTN_TICKET_NEW,
-    BTN_VERIFY,
-    BTN_ANNOUNCEMENTS,
-    BTN_BOOK_ZONE,
-    BTN_LAUNDRY,
-    BTN_MY_BOOKINGS,
-    BTN_COMMS,
+    BUTTON_REGEX,
     CATEGORY,
     CONTACT,
     DESCRIPTION,
@@ -247,7 +228,7 @@ def main():
     auth_conv = ConversationHandler(
         entry_points=[
             CommandHandler("verify", verify_start),
-            MessageHandler(filters.Regex(f"^{BTN_VERIFY}$"), verify_start),
+            MessageHandler(filters.Regex(f"^{BUTTON_REGEX['VERIFY']}$"), verify_start),
             CallbackQueryHandler(verify_start_callback, pattern="^verify_start$"),
         ],
         states={
@@ -261,7 +242,7 @@ def main():
     conv = ConversationHandler(
         entry_points=[
             CommandHandler("add", add_start),
-            MessageHandler(filters.Regex(f"^{BTN_ADD}$"), add_start),
+            MessageHandler(filters.Regex(f"^{BUTTON_REGEX['ADD']}$"), add_start),
         ],
         states={
             TYPE: [CallbackQueryHandler(type_selected, pattern="^type_")],
@@ -283,7 +264,7 @@ def main():
     lostfound_conv = ConversationHandler(
         entry_points=[
             CommandHandler("lostfound_add", lostfound_add_start),
-            MessageHandler(filters.Regex(f"^{BTN_LOSTFOUND_ADD}$"), lostfound_add_start),
+            MessageHandler(filters.Regex(f"^{BUTTON_REGEX['LOSTFOUND_ADD']}$"), lostfound_add_start),
         ],
         states={
             LF_TYPE: [CallbackQueryHandler(lostfound_type_selected, pattern="^lf_type_")],
@@ -304,7 +285,7 @@ def main():
     booking_conv = ConversationHandler(
         entry_points=[
             CommandHandler("book_zone", zone_booking_start),
-            MessageHandler(filters.Regex(f"^{BTN_BOOK_ZONE}$"), zone_booking_start),
+            MessageHandler(filters.Regex(f"^{BUTTON_REGEX['BOOK_ZONE']}$"), zone_booking_start),
         ],
         states={
             BOOK_ZONE_NAME: [CallbackQueryHandler(zone_booking_zone_selected, pattern="^zone_pick_")],
@@ -317,7 +298,7 @@ def main():
     ticket_conv = ConversationHandler(
         entry_points=[
             CommandHandler("ticket_new", ticket_start),
-            MessageHandler(filters.Regex(f"^{BTN_TICKET_NEW}$"), ticket_start),
+            MessageHandler(filters.Regex(f"^{BUTTON_REGEX['TICKET_NEW']}$"), ticket_start),
         ],
         states={
             TICKET_THEME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ticket_theme_input)],
@@ -335,11 +316,11 @@ def main():
 
     app.add_handler(auth_conv)
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_START}$"), start))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_MENU}$"), show_menu))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_MARKETPLACE}$"), open_marketplace))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_SPACE}$"), open_space))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_COMMS}$"), open_comms))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['START']}$"), start))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['MENU']}$"), show_menu))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['MARKETPLACE']}$"), open_marketplace))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['SPACE']}$"), open_space))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['COMMS']}$"), open_comms))
     app.add_handler(CallbackQueryHandler(dorm_chosen, pattern="^dorm_"))
     app.add_handler(CallbackQueryHandler(list_type_callback, pattern="^list_(buy|sell)$"))
     app.add_handler(CallbackQueryHandler(lostfound_done_callback, pattern="^lf_done_\\d+$"))
@@ -348,9 +329,9 @@ def main():
     app.add_handler(CallbackQueryHandler(mark_listing_callback, pattern="^mark_\\d+$"))
     app.add_handler(CallbackQueryHandler(delete_listing_callback, pattern="^del_\\d+$"))
     app.add_handler(CommandHandler("change", change_dorm))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_CHANGE_DORM}$"), change_dorm))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['CHANGE_DORM']}$"), change_dorm))
     app.add_handler(CommandHandler("lang", language_menu))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_LANG}$"), language_menu))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['LANG']}$"), language_menu))
     app.add_handler(CallbackQueryHandler(language_set_callback, pattern="^lang_(ru|en|zh)$"))
 
 
@@ -360,19 +341,19 @@ def main():
     app.add_handler(ticket_conv)
 
     app.add_handler(CommandHandler("list", list_listings))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_LIST}$"), list_listings))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['LIST']}$"), list_listings))
     app.add_handler(CommandHandler("my", my_ads))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_MY}$"), my_ads))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['MY']}$"), my_ads))
     app.add_handler(CommandHandler("lostfound_list", lostfound_list))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_LOSTFOUND_LIST}$"), lostfound_list))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['LOSTFOUND_LIST']}$"), lostfound_list))
     app.add_handler(CommandHandler("my_bookings", my_bookings))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_MY_BOOKINGS}$"), my_bookings))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['MY_BOOKINGS']}$"), my_bookings))
     app.add_handler(CommandHandler("laundry", laundry_status))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_LAUNDRY}$"), laundry_status))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['LAUNDRY']}$"), laundry_status))
     app.add_handler(CommandHandler("announcements", announcements_list))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_ANNOUNCEMENTS}$"), announcements_list))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['ANNOUNCEMENTS']}$"), announcements_list))
     app.add_handler(CommandHandler("my_tickets", my_tickets))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_TICKET_MY}$"), my_tickets))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['TICKET_MY']}$"), my_tickets))
     app.add_handler(CommandHandler("announce", announcement_create))
     app.add_handler(CommandHandler("ticket_status", ticket_status_update))
     app.add_handler(CommandHandler("delete", delete_listing))
@@ -380,7 +361,7 @@ def main():
     app.add_handler(CommandHandler("retranslate", retranslate_all))
     app.add_handler(CommandHandler("info", info_command))
     app.add_handler(CommandHandler("help", info_command))
-    app.add_handler(MessageHandler(filters.Regex(f"^{BTN_INFO}$"), info_command))
+    app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['INFO']}$"), info_command))
 
     print("Бот запущен. Ctrl+C — остановка")
     app.run_polling(allowed_updates=["message", "callback_query"], drop_pending_updates=True)
