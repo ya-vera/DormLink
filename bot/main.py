@@ -86,6 +86,7 @@ from handlers import (
     language_menu,
     language_set_callback,
     retranslate_all,
+    restart_registration,
 )
 
 from models import (
@@ -319,6 +320,7 @@ def main():
     # --------------------------
     # 1️⃣ /start — только выбор языка
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("restart", restart_registration))
     app.add_handler(MessageHandler(filters.Regex(f"^{BUTTON_REGEX['START']}$"), start))
 
     # --------------------------

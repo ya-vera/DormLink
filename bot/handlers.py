@@ -229,6 +229,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Language saved.",
         "zh": "语言已保存。",
     },
+    "RESTART_DONE": {
+        "ru": "Регистрация сброшена. Начнем заново 👇",
+        "en": "Registration reset. Let's start again 👇",
+        "zh": "注册已重置。我们重新开始吧 👇",
+    },
     "NOW_VERIFY": {
         "ru": "Теперь пройдите верификацию через почту ВШЭ.",
         "en": "Now verify with your HSE email.",
@@ -341,6 +346,7 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "NO_FREE_SLOTS": {"ru": "Нет свободных слотов на этот день", "en": "No free slots for this day", "zh": "当天无空闲时段"},
     "BACK_TO_DAYS": {"ru": "⬅️ Назад к выбору даты", "en": "⬅️ Back to dates", "zh": "⬅️ 返回日期选择"},
+    "BACK_TO_ZONES": {"ru": "⬅️ Назад к выбору зоны", "en": "⬅️ Back to zones", "zh": "⬅️ 返回区域选择"},
     "BOOKING_CREATED": {
         "ru": "Заявка на бронирование создана ✅\n{zone}: {slot}",
         "en": "Booking request created ✅\n{zone}: {slot}",
@@ -622,7 +628,7 @@ MESSAGES: dict[str, dict[str, str]] = {
             "2) 🏢 Управление пространством: бронь зон + статус стиралок\n"
             "3) 💬 Коммуникация и сервис: объявления организации + обращения\n\n"
             "Ключевые команды:\n"
-            "/start /verify /change /info\n"
+            "/start /restart /verify /change /info\n"
             "/add /list /my /delete <id> /buy <id>\n"
             "/lostfound_add /lostfound_list\n"
             "/book_zone /my_bookings /laundry\n"
@@ -636,7 +642,7 @@ MESSAGES: dict[str, dict[str, str]] = {
             "2) Space: zones booking + laundry\n"
             "3) Communication: announcements + tickets\n\n"
             "Commands:\n"
-            "/start /verify /change /info\n"
+            "/start /restart /verify /change /info\n"
             "/add /list /my /delete <id> /buy <id>\n"
             "/lostfound_add /lostfound_list\n"
             "/book_zone /my_bookings /laundry\n"
@@ -650,7 +656,7 @@ MESSAGES: dict[str, dict[str, str]] = {
             "2) 空间管理\n"
             "3) 通信\n\n"
             "命令:\n"
-            "/start /verify /change /info",
+            "/start /restart /verify /change /info",
     }
 }
 
@@ -1177,6 +1183,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=language_keyboard(),
     )
 
+
+async def restart_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    profile = _profile_for_update(update)
+    profile.email = None
+    profile.is_verified = False
+    profile.selected_dorm = None
+    profile.verification_code = None
+    profile.code_expires_at = None
+    profile.save()
+    context.user_data.clear()
+
+    await update.message.reply_text(t(profile, "RESTART_DONE"))
+    await update.message.reply_text(
+        "Choose language / Выберите язык / 选择语言",
+        reply_markup=language_keyboard(),
+    )
+
 # Callback после выбора языка
 async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1188,7 +1211,7 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # сохраняем язык в профиле
-    profile, _ = UserProfile.get_or_create(telegram_id=update.effective_user.id)
+    profile = _profile_for_update(update)
     profile.preferred_language = lang
     profile.save()
     context.user_data["lang"] = lang
@@ -1366,6 +1389,7 @@ async def verify_code_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         t(profile, "NOW_CHOOSE_DORM"),
         reply_markup=_dorm_keyboard(lang)
     )
+    return ConversationHandler.END
 
 async def change_dorm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile = _profile_for_update(update)  # берём профиль пользователя
@@ -1929,15 +1953,18 @@ async def zone_booking_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not profile.selected_dorm:
         await update.message.reply_text(t(profile, "CHOOSE_DORM_FIRST"))
         return ConversationHandler.END
-    keyboard = InlineKeyboardMarkup(
+    await update.message.reply_text(t(profile, "CHOOSE_ZONE"), reply_markup=_zone_picker_keyboard(profile))
+    return BOOK_ZONE_NAME
+
+
+def _zone_picker_keyboard(profile: UserProfile) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(t(profile,"ZONE_COWORKING"), callback_data="zone_pick_coworking")],
-            [InlineKeyboardButton(t(profile,"ZONE_KITCHEN"), callback_data="zone_pick_kitchen")],
-            [InlineKeyboardButton(t(profile,"ZONE_TUTOR"), callback_data="zone_pick_tutor")],
+            [InlineKeyboardButton(t(profile, "ZONE_COWORKING"), callback_data="zone_pick_coworking")],
+            [InlineKeyboardButton(t(profile, "ZONE_KITCHEN"), callback_data="zone_pick_kitchen")],
+            [InlineKeyboardButton(t(profile, "ZONE_TUTOR"), callback_data="zone_pick_tutor")],
         ]
     )
-    await update.message.reply_text(t(profile, "CHOOSE_ZONE"), reply_markup=keyboard)
-    return BOOK_ZONE_NAME
 
 
 def _zone_hours(zone_key: str) -> tuple[int, int]:
@@ -2033,12 +2060,13 @@ async def _show_zone_days(query_message, zone_key: str, profile) -> None:
     # оставшиеся кнопки (если их меньше 3)
     if day_buttons:
         keyboard_rows.append(day_buttons)
+    keyboard_rows.append([InlineKeyboardButton(t(profile, "BACK_TO_ZONES"), callback_data="zone_back_to_zones")])
 
     # ОБЯЗАТЕЛЬНО передаём список списков кнопок
     reply_markup = InlineKeyboardMarkup(keyboard_rows)
 
     await query_message.reply_text(
-        t(None, "ZONE_PICK_DATE", zone=zone_name),
+        t(profile, "ZONE_PICK_DATE", zone=zone_name),
         reply_markup=reply_markup,
     )
 
@@ -2109,11 +2137,14 @@ async def zone_booking_slot_or_day_selected(update: Update, context: ContextType
         return BOOK_ZONE_SLOT
 
     if query.data.startswith("zone_back_"):
+        if query.data == "zone_back_to_zones":
+            await query.message.reply_text(t(profile, "CHOOSE_ZONE"), reply_markup=_zone_picker_keyboard(profile))
+            return BOOK_ZONE_NAME
         _, _, zone_key = query.data.split("_", 2)
         if zone_key not in ZONE_MAP:
             await query.message.reply_text(t(profile, "UNKNOWN_ZONE"))
             return BOOK_ZONE_SLOT
-        await _show_zone_days(query.message, zone_key)
+        await _show_zone_days(query.message, zone_key, profile)
         return BOOK_ZONE_SLOT
 
     if query.data.startswith("zone_day_"):
